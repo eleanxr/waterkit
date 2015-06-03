@@ -79,3 +79,10 @@ def read_global_connectivity(plusflow_dataset):
     local = create_connectivity_matrix(data)
     glbl = create_global_connectivity_matrix(local)
     return glbl
+
+def to_directed_acyclic_graph(connectivity):
+    """
+    Convert the connectivity matrix to a directed acyclic graph for
+    visualization and analysis.
+    """
+    return nx.from_numpy_matrix(connectivity.as_matrix(), nx.DiGraph())

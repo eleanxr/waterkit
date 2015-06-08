@@ -86,3 +86,28 @@ def to_directed_acyclic_graph(connectivity):
     visualization and analysis.
     """
     return nx.from_numpy_matrix(connectivity.as_matrix(), nx.DiGraph())
+
+def calculate_drainage_area(featureid, catchments, global_connectivity):
+    """Calculate the drainage area contributing to a given feature id.
+
+    This function calculates the drainage area corresponding to a given
+    feature id in the NHD+V2 catchment dataset. Returns the drainage
+    area in km**2.
+
+    Parameters
+    ----------
+    featureid: string
+        The feature id to calculate the drainage area for
+    catchments: DataFrame
+        The table of catchments from the NHD+V2 catchment dataset
+    global_connectivity:
+        The global (transitively closed) connectivity matrix
+    """
+    area_attr = "AreaSqKM" # Name of the catchment area attribute in NHD+V2
+    conn_column = global_connectivity[featureid]
+    has_connections = pd.DataFrame(conn_column[conn_column == 1])
+
+    # Left join to the NHD+V2 dataset on feature id.
+    join = pd.merge(has_connections, catchments, how='left',
+                    left_index=True, right_on='FEATUREID')
+    return join[area_attr].sum()

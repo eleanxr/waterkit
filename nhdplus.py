@@ -111,3 +111,24 @@ def calculate_drainage_area(featureid, catchments, global_connectivity):
     join = pd.merge(has_connections, catchments, how='left',
                     left_index=True, right_on='FEATUREID')
     return join[area_attr].sum()
+
+def calculate_drainage_areas(catchments, global_connectivity):
+    """Calculate the drainage areas for all catchments.
+
+    Calculates the drainage areas for all catchments in the input catchment
+    data. Returns a table with all of the catchment drainage areas in
+    km**2.
+
+    Parameters
+    ----------
+    catchments: DataFrame
+        The table of catchments to calculate drainage area.
+    global_connectivity: DataFrame
+        The connectivity matrix (transitive closure)
+    """
+    area = catchments.apply(
+        lambda row: calculate_drainage_area(row['FEATUREID'], catchments, global_connectivity),
+        axis=1)
+    result = pd.concat([catchments['FEATUREID'], area], axis=1)
+    result.columns=['FEATUREID', 'AreaSqKM']
+    return result

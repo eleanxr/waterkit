@@ -10,6 +10,8 @@ MI_PER_KM = 0.621371
 def calculate_ca_flow_target(flowdata, drainage_area):
     """Calculate minimum bypass flows for California
 
+    Returns the flow target in CFS.
+
     Parameters
     ----------
     flowdata : DataFrame
@@ -22,7 +24,7 @@ def calculate_ca_flow_target(flowdata, drainage_area):
     q_m = flowdata.groupby("year").mean()['flow_cms'].mean()
     q_m = q_m * CF_PER_CM
 
-    drainage_area_mi = drainage_area / MI_PER_KM**2
+    drainage_area_mi = drainage_area * MI_PER_KM**2
     
     if drainage_area_mi <= 1.0:
         return 9.0 * q_m

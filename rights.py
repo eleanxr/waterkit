@@ -14,13 +14,13 @@ import nhdplus
 
 # The columns required for demand output.
 DEMAND_COLUMNS = [
-    "APPL_ID_use", # use
+    "APPL_ID_pod", # use
     "POD_ID", # use & pod
     "FEATUREID", # pod
     "Status Date", # ewrims
     "Riparian", # ewrims
     "Pre 1914", # ewrims
-    "FACEAMT", # use
+    "FACEAMT_use", # use
     "wr_type_use", # use
     "parcID", # use
     "vineyard", # use
@@ -85,27 +85,32 @@ def get_demand_data(data):
     by priority date.
     """
     result = data[DEMAND_COLUMNS]
-    result["Riparian"] = result["Riparian"].map({"Y": True}).fillna(False)
-    result["Pre 1914"] = result["Pre 1914"].map({"Y": True}).fillna(False)
 
     # Apply the use profiles.
     for i in range(1, 13):
         result[calendar.month_abbr[i]] = \
           VINEYARD_USE_PROFILE[i] * result["Vine_Water"] + \
           ORCHARD_USE_PROFILE[i] * result["Orch_Water"]
+    result = convert_ewrims_columns(result)
           
-    # Convert the status date column to an actual date.
-    result["Status Date"] = pd.to_datetime(result["Status Date"], coerce=True)
-    result = result.sort("Status Date")
-    
     return result
+
+def convert_ewrims_columns(data):
+    data["Riparian"] = data["Riparian"].map({"Y": True}).fillna(False)
+    data["Pre 1914"] = data["Pre 1914"].map({"Y": True}).fillna(False)
+    # Convert the status date column to an actual date.
+    data["Status Date"] = pd.DatetimeIndex(pd.to_datetime(data["Status Date"], coerce=True)).normalize()
+    data = data.sort("Status Date")
+    return data
+
 
 def get_rights_data(ewrims_file):
     """Read the rights data from a file downloaded from the eWRIMS database.
 
     Rights data may be obtained from the CA Water Board rights database in
     an Excel file. The file contains multiple worksheets:
-    - Water Rights : Details the right, its status date, its face value and its diversion rate.
+    - Water Rights : Details the right, its status date, its face value and its
+      diversion rate.
     - Application Info : Details the right application info, including whether or not
         the right is riparian or pre-1914.
     - Points of Diversion : The location of points of diversion.
@@ -144,14 +149,17 @@ def get_demand(use_file, pod_file, ewrims_file):
     pod_file : string
         The name of the file with the POD locations joined to their catchment.
     ewrims_file : string
-        The name of the file with water right information downloaded from the eWRIMS database.
+        The name of the file with water right information downloaded from the
+        eWRIMS database.
     """
     use_data = pd.read_csv(use_file)
     pod_data = nhdplus.read_dbf(pod_file)
     ewrims_data = get_rights_data(ewrims_file)
-    
-    use_pod = left_join(use_data, pod_data, 'POD_ID', 'POD_ID', suffixes=("_use", "_pod"))
-    use_pod_right = left_join(use_pod, ewrims_data, "APPL_ID_use", "Application Number")
+
+    pod_use = pd.merge(pod_data, use_data, left_on='POD_ID', right_on='POD_ID',
+                       suffixes=('_pod', '_use'), how='inner')
+    use_pod_right = pd.merge(pod_use, ewrims_data, left_on="APPL_ID_use",
+                             right_on="Application Number", how='inner')
     
     return get_demand_data(use_pod_right)
 
@@ -171,13 +179,50 @@ def get_demand_inputs(use_file, pod_file, ewrims_file):
         information.
     """
     demand = get_demand(use_file, pod_file, ewrims_file)
-    appropriative = demand[demand["Riparian"] == False]
-    riparian = demand[demand["Riparian"] == True]
-
+    appropriative, riparian = split_appropriative_riparian(demand)
     # Reset indexes to rank the appropriative users.
     appropriative = appropriative.reset_index(drop=True)
     
     return appropriative, riparian
+
+def split_appropriative_riparian(demand):
+    appropriative = demand[demand["Riparian"] == False]
+    riparian = demand[demand["Riparian"] == True]
+    return appropriative, riparian
+
+def create_use_reports(pod_file, ewrims_file):
+    ewrims_data = get_rights_data(ewrims_file)
+    pod_data = nhdplus.read_dbf(pod_file)
+
+    pod_right = pd.merge(pod_data, ewrims_data, left_on='APPL_ID',
+                         right_on='Application Number', how='left')
+
+    columns = [
+        "APPL_ID",
+        "FEATUREID",
+        "Status Date",
+        "Riparian",
+        "Pre 1914",
+        "FACEAMT",
+        ]
+
+    first = lambda x: x.iloc[0]
+    agg = {
+        "FEATUREID": first,
+        "Status Date": first,
+        "Riparian": first,
+        "Pre 1914": first,
+        "FACEAMT": np.sum
+        }
+        
+    result = convert_ewrims_columns(pod_right[columns]).groupby("APPL_ID").agg(agg).sort("Status Date")
+
+    result['Demand Year'] = pd.Series()
+    for i in range(1, 13):
+        result[calendar.month_abbr[i]] = pd.Series()
+
+    return split_appropriative_riparian(result)
+    
 
 def compare_owner_holder(row):
     """Assign a similarity index to a property OWNER and a water right HolderName.

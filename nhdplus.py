@@ -87,6 +87,10 @@ def to_directed_acyclic_graph(connectivity):
     """
     return nx.from_numpy_matrix(connectivity.as_matrix(), nx.DiGraph())
 
+def tree_layout(g):
+    """Create a layout that positions the nodes of g in a tree"""
+    return nx.graphviz_layout(g, prog='dot')    
+
 def calculate_drainage_area(featureid, catchments, global_connectivity):
     """Calculate the drainage area contributing to a given feature id.
 

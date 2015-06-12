@@ -17,15 +17,16 @@ DEMAND_COLUMNS = [
     "APPL_ID_pod", # use
     "POD_ID", # use & pod
     "FEATUREID", # pod
+    #"OwnEdit", # use
     "Status Date", # ewrims
     "Riparian", # ewrims
     "Pre 1914", # ewrims
-    "FACEAMT_use", # use
-    "wr_type_use", # use
-    "parcID", # use
-    "vineyard", # use
+    #"FACEAMT_use", # use
+    #"wr_type_use", # use
+    #"parcID", # use
+    #"vineyard", # use
     "Vine_Water", # use
-    "orchard", # use
+    #"orchard", # use
     "Orch_Water" # use
 ]
 
@@ -64,36 +65,43 @@ ORCHARD_USE_PROFILE = [
     0.0, #Nov
     0.0, #Dec
     ]
-    
+
+SUMMER_DOMESTIC_USE = [
+    None,
+    0.0, #Jan
+    0.0, #Feb
+    0.0, #Mar
+    1.0/6.0, #Apr
+    1.0/6.0, #May
+    1.0/6.0, #Jun
+    1.0/6.0, #Jul
+    1.0/6.0, #Aug
+    1.0/6.0, #Sep
+    0.0, #Oct
+    0.0, #Nov
+    0.0, #Dec
+    ]
+
+WINTER_DOMESTIC_USE = [
+    None,
+    1.0/6.0, #Jan
+    1.0/6.0, #Feb
+    1.0/6.0, #Mar
+    0.0, #Apr
+    0.0, #May
+    0.0, #Jun
+    0.0, #Jul
+    0.0, #Aug
+    0.0, #Sep
+    1.0/6.0, #Oct
+    1.0/6.0, #Nov
+    1.0/6.0, #Dec
+    ]
+        
 def left_join(use, pod, use_id, pod_id, suffixes=("_x", "_y")):
     """Perform a left join of two datasets."""
     return pd.merge(use, pod, left_on=use_id, right_on=pod_id,
                     how='left', suffixes=suffixes)
-
-def get_demand_data(data):
-    """Get overall demand data given the fully joined tables.
-
-    Returns the demand data with use broken down by month given a joined
-    DataFrame containing all of the demand columns as specified by the
-    DEMAND_COLUMNS list above. This is generally the result of
-    performing a left join from water need data to POD data, and then
-    performing another left join from the POD data (including the
-    catchment basin in which it lies) to the table of water rights
-    obtained from the CA eWRIMS database. This function also uses the
-    use profiles specified above to break down the demand by month
-    according to its intended use. Finally, the results are ordered
-    by priority date.
-    """
-    result = data[DEMAND_COLUMNS]
-
-    # Apply the use profiles.
-    for i in range(1, 13):
-        result[calendar.month_abbr[i]] = \
-          VINEYARD_USE_PROFILE[i] * result["Vine_Water"] + \
-          ORCHARD_USE_PROFILE[i] * result["Orch_Water"]
-    result = convert_ewrims_columns(result)
-          
-    return result
 
 def convert_ewrims_columns(data):
     data["Riparian"] = data["Riparian"].map({"Y": True}).fillna(False)
@@ -124,18 +132,13 @@ def get_rights_data(ewrims_file):
     return left_join(water_rights, application_info, "Application Number", "Application ID",
                      suffixes=("_right", "_info"))
 
-def get_demand(use_file, pod_file, ewrims_file):
-    """Get a single table with all of the demand estimates.
+def get_ag_demand(use_file, pod_file, ewrims_file):
+    """Get a single table with agricultural demand estimates.
 
     The use file is expected to contain the following columns:
     - POD_ID : A unique identifier for the point of diversion.
     - APPL_ID : The water right application ID
-    - FACEAMT : The face value of the water right at the POD
-    - wr_right_status : The water right status
-    - parcID : A unique identifier for the parcel with which the right is associated
-    - vineyard : The number of acres used as a vineyard
     - Vine_Water : The water used for the vineyard acreage
-    - orchard : The number of acres used for orchards
     - Orch_Water : The water used for the orchard acreage
 
     The POD file is expected to contain the following columns:
@@ -154,43 +157,116 @@ def get_demand(use_file, pod_file, ewrims_file):
     """
     use_data = pd.read_csv(use_file)
     pod_data = nhdplus.read_dbf(pod_file)
-    ewrims_data = get_rights_data(ewrims_file)
 
     pod_use = pd.merge(pod_data, use_data, left_on='POD_ID', right_on='POD_ID',
-                       suffixes=('_pod', '_use'), how='inner')
-    use_pod_right = pd.merge(pod_use, ewrims_data, left_on="APPL_ID_use",
-                             right_on="Application Number", how='inner')
-    
-    return get_demand_data(use_pod_right)
+                       suffixes=('_pod', '_use'), how='left')
 
-def get_demand_inputs(use_file, pod_file, ewrims_file):
-    """Get the demand inputs for the UC Davis model.
+    columns = [
+        'APPL_ID_pod',
+        'FEATUREID',
+        'Vine_Water',
+        'Orch_Water',
+        ]
+    first = lambda x: x.iloc[0]
+    return pod_use[columns].groupby('APPL_ID_pod').agg(first)
 
-    Returns (appropriative, riparian), both of which are DataFrames.
-    Appropriative is the appropriative demand, riparian is the riparian
-    demand.
+def get_structure_demand(pods, structures):
+    """Get a single table with structure demand estimates.
 
-    use_file: string
-        The file with water use/need information.
-    pod_file: string
-        The file with POD locations mapped to sub-watershed regions.
-    ewrims_file: string
-        The downloaded file from the CA eWRIMS database with water rights
-        information.
+    The structures file is expected to have the following fields:
+    - JOIN_FID: The parcel ID on which the structure lies.
+    - TARGET_FID: A unique identifier for each structure.
+    - SummerAF: The water demand in the summer (AF)
+    - WinterAF: The water demand in the winter (AF)
+
+    The POD file is expected to have the following fields:
+    JOIN_FID: The parcel ID on which the POD lies.
+    APPL_ID: The water right application ID.
     """
-    demand = get_demand(use_file, pod_file, ewrims_file)
-    appropriative, riparian = split_appropriative_riparian(demand)
-    # Reset indexes to rank the appropriative users.
-    appropriative = appropriative.reset_index(drop=True)
-    
-    return appropriative, riparian
+    pod_data = nhdplus.read_dbf(pods)    
+    structure_data = nhdplus.read_dbf(structures)
+    join = pd.merge(pod_data, structure_data,
+                    left_on='JOIN_FID', right_on='JOIN_FID',
+                    how='inner', suffixes=('_pod', '_structure'))
+    columns = [
+        'APPL_ID',
+        'TARGET_FID_structure',
+        'SummerAF',
+        'WinterAF',
+        ]
+    return join[columns].groupby('TARGET_FID_structure').agg({
+        'APPL_ID': lambda x: x.iloc[0],
+        'SummerAF': np.sum,
+        'WinterAF': np.sum
+        }).groupby('APPL_ID').agg({
+            'SummerAF': np.sum,
+            'WinterAF': np.sum
+            })
 
+def merge_ag_structure(ag_demand, structure_demand):
+    """Merge agricultural and structure use data on Application ID
+
+    Both datasets are expected to be indexed by Application ID.
+    """
+    join = pd.merge(ag_demand, structure_demand,
+                    left_index=True, right_index=True,
+                    how='outer')
+    return join
+
+def add_rights_info(demand, ewrims_file):
+    """Add water right information from the eWRIMS database.
+
+    Parameters
+    ----------
+    demand : Series
+        The demand indexed by application ID.
+    ewrims_file : string
+        An excel file downloaded from eWRIMS with water right information.
+    """
+    ewrims_data = get_rights_data(ewrims_file)[[
+        "Application ID",
+        "Riparian",
+        "Pre 1914",
+        "Status Date"
+        ]]
+    join = pd.merge(demand, ewrims_data, left_index=True, right_on="Application ID",
+                    how='left')
+    return convert_ewrims_columns(join).set_index("Application ID")
+
+def disaggregate_monthly(demand):
+    """Disaggregate the demand estimate by month.
+    
+    Estimates are used for the following fields:
+    - Vine_Water : Water use for vineyards
+    - Orch_Water : Water use for orchards
+    - WinterAF : Structure use in the winter.
+    - SummerAF : Structure use in the summer.
+    """
+    result = demand.copy()
+
+    for column in ['Vine_Water', 'Orch_Water', 'SummerAF', 'WinterAF']:
+        result[column].fillna(0.0, inplace=True)
+    
+    # Apply the use profiles.
+    for i in range(1, 13):
+        result[calendar.month_abbr[i]] = \
+          VINEYARD_USE_PROFILE[i] * result["Vine_Water"] + \
+          ORCHARD_USE_PROFILE[i] * result["Orch_Water"] + \
+          WINTER_DOMESTIC_USE[i] * result["WinterAF"] + \
+          SUMMER_DOMESTIC_USE[i] * result["SummerAF"]
+    return result
+    
 def split_appropriative_riparian(demand):
+    """Split appropriative and riparian demand into two datasets"""
     appropriative = demand[demand["Riparian"] == False]
     riparian = demand[demand["Riparian"] == True]
     return appropriative, riparian
 
 def create_use_reports(pod_file, ewrims_file):
+    """Create use report stubs for hand entry.
+
+    This function does not apply any automatic demand estimates.
+    """
     ewrims_data = get_rights_data(ewrims_file)
     pod_data = nhdplus.read_dbf(pod_file)
 

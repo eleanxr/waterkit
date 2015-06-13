@@ -1,18 +1,21 @@
 #! /usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 
 requirements = [
+    'setuptools',
     'numpy',
     'pandas',
-    'pysal'
+    'pysal',
+    'scipy'
 ]
 
 setup(
-    name='riverkit',
+    name='waterkit',
     version='0.1',
-    description='River data analysis kit.',
+    description='Water data analysis kit.',
     author='Will Dicharry',
     author_email='wdicharry@gmail.com',
-    install_requires=requirements
+    install_requires=requirements,
+    test_suite="tests"
 )

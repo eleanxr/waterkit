@@ -48,6 +48,22 @@ VINEYARD_USE_PROFILE = [
     0.0, #Dec
     ]
 
+VINEYARD_USE_PROFILE_STORAGE = [
+    None,
+    1.0/3, #Jan
+    1.0/3, #Feb
+    0.0, #Mar
+    0.0, #Apr
+    0.0, #May
+    0.0, #Jun
+    0.0, #Jul
+    0.0, #Aug
+    0.0, #Sep
+    0.0, #Oct
+    0.0, #Nov
+    1.0/3, #Dec
+    ]
+
 # Use profile for orchards assumes the irrigation season runs from
 # mid-May through mid-October.    
 ORCHARD_USE_PROFILE = [
@@ -132,6 +148,14 @@ def get_rights_data(ewrims_file):
     return left_join(water_rights, application_info, "Application Number", "Application ID",
                      suffixes=("_right", "_info"))
 
+def get_demand(use, use_pod, structure, structure_pod, ewrims,
+               vineyard_profile=VINEYARD_USE_PROFILE):
+    ag_demand = get_ag_demand(use, use_pod, ewrims)
+    structure_demand = get_structure_demand(structure_pod, structure)
+    ag_structure = merge_ag_structure(ag_demand, structure_demand)
+    rights = add_rights_info(ag_structure, ewrims)
+    return disaggregate_monthly(rights, vineyard_profile)
+
 def get_ag_demand(use_file, pod_file, ewrims_file):
     """Get a single table with agricultural demand estimates.
 
@@ -156,11 +180,12 @@ def get_ag_demand(use_file, pod_file, ewrims_file):
         eWRIMS database.
     """
     use_data = pd.read_csv(use_file)
+    
     pod_data = nhdplus.read_dbf(pod_file)
 
     pod_use = pd.merge(pod_data, use_data, left_on='POD_ID', right_on='POD_ID',
                        suffixes=('_pod', '_use'), how='left')
-
+    pod_use['APPL_ID_pod'] = pod_use['APPL_ID_pod'].map(lambda x: x[:-1] if x.endswith('R') else x)
     columns = [
         'APPL_ID_pod',
         'FEATUREID',
@@ -188,6 +213,7 @@ def get_structure_demand(pods, structures):
     join = pd.merge(pod_data, structure_data,
                     left_on='JOIN_FID', right_on='JOIN_FID',
                     how='inner', suffixes=('_pod', '_structure'))
+    join['APPL_ID'] = join['APPL_ID'].map(lambda x: x[:-1] if x.endswith('R') else x)
     columns = [
         'APPL_ID',
         'TARGET_FID_structure',
@@ -196,8 +222,8 @@ def get_structure_demand(pods, structures):
         ]
     return join[columns].groupby('TARGET_FID_structure').agg({
         'APPL_ID': lambda x: x.iloc[0],
-        'SummerAF': np.sum,
-        'WinterAF': np.sum
+        'SummerAF': lambda x: x.iloc[0],
+        'WinterAF': lambda x: x.iloc[0]
         }).groupby('APPL_ID').agg({
             'SummerAF': np.sum,
             'WinterAF': np.sum
@@ -233,7 +259,7 @@ def add_rights_info(demand, ewrims_file):
                     how='left')
     return convert_ewrims_columns(join).set_index("Application ID")
 
-def disaggregate_monthly(demand):
+def disaggregate_monthly(demand, vineyard_profile=VINEYARD_USE_PROFILE):
     """Disaggregate the demand estimate by month.
     
     Estimates are used for the following fields:
@@ -250,7 +276,7 @@ def disaggregate_monthly(demand):
     # Apply the use profiles.
     for i in range(1, 13):
         result[calendar.month_abbr[i]] = \
-          VINEYARD_USE_PROFILE[i] * result["Vine_Water"] + \
+          vineyard_profile[i] * result["Vine_Water"] + \
           ORCHARD_USE_PROFILE[i] * result["Orch_Water"] + \
           WINTER_DOMESTIC_USE[i] * result["WinterAF"] + \
           SUMMER_DOMESTIC_USE[i] * result["SummerAF"]
@@ -261,6 +287,17 @@ def split_appropriative_riparian(demand):
     appropriative = demand[demand["Riparian"] == False]
     riparian = demand[demand["Riparian"] == True]
     return appropriative, riparian
+
+def write_input_spreadsheet(demand, filename):
+    app, rip = split_appropriative_riparian(demand)
+    pre = app[app["Pre 1914"] == True]
+    post = app[app["Pre 1914"] == False]
+
+    writer = pd.ExcelWriter(filename)
+    rip.to_excel(writer, "Riparian")
+    pre.to_excel(writer, "AppPre1914")
+    post.to_excel(writer, "AppPost1914")
+    writer.save()
 
 def create_use_reports(pod_file, ewrims_file):
     """Create use report stubs for hand entry.

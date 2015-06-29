@@ -7,7 +7,7 @@ requirements = [
     'numpy',
     'pandas',
     'pysal',
-    'scipy'
+#    'scipy'
 ]
 
 setup(
@@ -17,5 +17,6 @@ setup(
     author='Will Dicharry',
     author_email='wdicharry@gmail.com',
     install_requires=requirements,
+    packages=['waterkit'],
     test_suite="tests"
 )

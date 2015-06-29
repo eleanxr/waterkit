@@ -24,6 +24,40 @@ WATER_RIGHT_BOUNDARIES = [pd.Timestamp("2000-05-15").dayofyear, pd.Timestamp('20
 
 CFS_DAY_TO_AF = 1.9835
 
+def add_time_attributes(data):
+    data["dayofyear"] = data.index.dayofyear
+    data["year"] = data.index.year
+    data["month"] = data.index.month
+
+class GradedFlowTarget(object):
+    def __init__(self, targets=[]):
+        self.targets = []
+        for target in targets:
+            self.add(target[0], target[1])
+
+    def add(self, interval, value):
+        start_day = pd.Timestamp("2000-" + interval[0]).dayofyear
+        end_day = pd.Timestamp("2000-" + interval[1]).dayofyear
+
+        if end_day < start_day:
+            self.targets.append(((0, end_day), value))
+            self.targets.append(((start_day, 366), value))
+        else:
+            self.targets.append(((start_day, end_day), value))
+        self.targets.sort(key=lambda x: x[0][0])
+
+    def __call__(self, day):
+        for target in self.targets:
+            interval = target[0]
+            value = target[1]
+            if interval[0] <= day and day <= interval[1]:
+                return value
+        return np.nan
+
+    def __str__(self):
+        return "GradedFlowTarget(" + str(self.targets) + ")"
+    
+
 def read_data(site_id, start_date, end_date, flow_target=None):
     """
     Read data for the given USGS site id from start_date to
@@ -32,9 +66,7 @@ def read_data(site_id, start_date, end_date, flow_target=None):
     data = usgs_data.get_flow_data(site_id, start_date, end_date)
     
     # Add new columns for easy pivoting.
-    data["dayofyear"] = data.index.dayofyear
-    data["year"] = data.index.year
-    data["month"] = data.index.month
+    add_time_attributes(data)
     
     # Append the derived attributes
     add_flow_gap_attributes(data, flow_target)
@@ -81,17 +113,20 @@ def create_yearly_totals(data, attributes):
     return result
 
 def raster_plot(data, value, title, colormap=None, norm=None,
-                show_colorbar=False, vmin=None, vmax=None):
+                show_colorbar=False, vmin=None, vmax=None, fig=None, ax=None):
     """
     Create a raster plot of a given attribute with day of year on the
     x-axis and year on the y-axis.
     """
+    if not ax:
+        fig, ax = plt.subplots()
+    
     raster_table = create_raster_table(data, value, ascending = False)
     extent = [0, 365, raster_table.index.min(), raster_table.index.max()]
     min_value = data.min()[value]
     max_value = data.max()[value]
     
-    plot = plt.imshow(raster_table, interpolation = 'nearest', aspect='auto',
+    plot = ax.imshow(raster_table, interpolation = 'nearest', aspect='auto',
                       extent = extent, cmap=colormap, norm=norm,
                       vmin=vmin, vmax=vmax)
     if show_colorbar:
@@ -106,14 +141,19 @@ def raster_plot(data, value, title, colormap=None, norm=None,
             extend = 'max'
         else:
             extend = 'neither'
-        colorbar = plt.colorbar(extend=extend)
+        colorbar = fig.colorbar(plot, extend=extend)
         #colorbar.set_ticks([data.min()[value], 0, data.max()[value]])
         #colorbar.set_ticklabels([data.min()[value], 0, data.max()[value]])
     
     axes = plot.get_axes()
     axes.set_xlabel("Month")
     axes.set_ylabel("Year")
+    label_months(axes)
     
+    ax.set_title(title)
+    return ax
+
+def label_months(axes):
     months = pd.date_range("1/1/2015", periods=12, freq="M")
     half_months = months.shift(15, freq="D")
     #axes.set_xticks(months)
@@ -125,7 +165,6 @@ def raster_plot(data, value, title, colormap=None, norm=None,
     minor_formatter = month_formatter()
     axes.xaxis.set_minor_formatter(minor_formatter)
     
-    plt.title(title)
     
 def month_formatter():
     """

@@ -1,5 +1,4 @@
 import pandas as pd
-import pysal as ps
 import numpy as np
 
 import sys
@@ -156,7 +155,7 @@ def get_demand(use, use_pod, structure, structure_pod, ewrims,
     rights = add_rights_info(ag_structure, ewrims)
     return disaggregate_monthly(rights, vineyard_profile)
 
-def get_ag_demand(use_file, pod_file, ewrims_file):
+def get_ag_demand(use_file, use_sheet, pod_file, ewrims_file):
     """Get a single table with agricultural demand estimates.
 
     The use file is expected to contain the following columns:
@@ -173,13 +172,15 @@ def get_ag_demand(use_file, pod_file, ewrims_file):
     ----------
     use_file : string
         The name of the file with all of the use information.
+    use_sheet : string
+        The name of the worksheet containing the water use information.
     pod_file : string
         The name of the file with the POD locations joined to their catchment.
     ewrims_file : string
         The name of the file with water right information downloaded from the
         eWRIMS database.
     """
-    use_data = pd.read_csv(use_file)
+    use_data = pd.read_excel(use_file, use_sheet)
     
     pod_data = nhdplus.read_dbf(pod_file)
 

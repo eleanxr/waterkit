@@ -12,6 +12,7 @@ requirements = [
     # 'scipy',
     'dbfread==2.0.4',
     'networkx==1.9.1',
+    'xlrd==0.9.3',
 ]
 
 setup(

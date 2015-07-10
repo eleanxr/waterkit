@@ -6,13 +6,16 @@ requirements = [
     'setuptools',
     # Choose numpy for ArcGIS 10.2
     'numpy==1.7.1',
+    # Choose latest numpy
+    # 'numpy==1.9.2',
     # Choose pandas for numpy 1.7.1
     'pandas==0.13.1',
-    # 'pysal',
-    # 'scipy',
+    # Choose latest pandas
+    # 'pandas==0.16.2',
     'dbfread==2.0.4',
     'networkx==1.9.1',
     'xlrd==0.9.3',
+    'openpyxl==1.8.6',
 ]
 
 setup(

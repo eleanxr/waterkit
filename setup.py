@@ -4,10 +4,13 @@ from setuptools import setup
 
 requirements = [
     'setuptools',
-    'numpy',
-    'pandas',
-    'pysal',
-#    'scipy'
+    # Choose numpy for ArcGIS 10.2
+    'numpy==1.7.1',
+    # Choose pandas for numpy 1.7.1
+    'pandas==0.13.1',
+    # 'pysal',
+    # 'scipy',
+    'dbfread==2.0.4',
 ]
 
 setup(

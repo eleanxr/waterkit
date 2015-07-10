@@ -17,6 +17,14 @@ def read_dbf(filename, columns = None):
     data = {col: dbf.by_col(col) for col in columns}
     return pd.DataFrame(data)
 
+def subset_plusflow(plusflow, nhdplus_table):
+    """
+    Get a subset of the plusflow dataset using a given
+    set of NHDPlus features.
+    """
+    return pd.merge(plusflow, nhdplus_table, how='inner',
+                    left_on='FROMCOMID', right_on='FEATUREID')
+
 def create_connectivity_matrix(plusflow):
     """
     Create the connectivity matrix from the NHDPlusV2 PlusFlow dataset.
@@ -136,3 +144,12 @@ def calculate_drainage_areas(catchments, global_connectivity):
     result = pd.concat([catchments['FEATUREID'], area], axis=1)
     result.columns=['FEATUREID', 'AreaSqKM']
     return result
+
+def to_excel(excel_file, dataframes, sheet_names=None):
+    """Save a list of dataframes to an excel file, one per sheet"""
+    writer = pd.ExcelWriter(excel_file)
+    if not sheet_names or len(sheet_names) != len(dataframes):
+        sheet_names = ['sheet_%d' % i for i in range(len(dataframes))]
+    for dataframe, sheet_name in zip(dataframes, sheet_names):
+        dataframe.to_excel(writer, sheet_name)
+    writer.save()

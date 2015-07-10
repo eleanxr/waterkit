@@ -11,6 +11,7 @@ requirements = [
     # 'pysal',
     # 'scipy',
     'dbfread==2.0.4',
+    'networkx==1.9.1',
 ]
 
 setup(

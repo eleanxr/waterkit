@@ -2,13 +2,15 @@
 Tools for working with the NHD+V2 hydro data set.
 """
 import pandas as pd
-import pysal as ps
 import numpy as np
 import networkx as nx
+
+from dbfread import DBF
 
 def read_dbf(filename, columns = None):
     """
     Read a dBASE file with attributes into a pandas DataFrame.
+    """
     """
     dbf = ps.open(filename)
     
@@ -16,6 +18,20 @@ def read_dbf(filename, columns = None):
         columns = dbf.header
     data = {col: dbf.by_col(col) for col in columns}
     return pd.DataFrame(data)
+    """
+    dbf = DBF(filename, load = True)
+    if not columns:
+        columns = dbf.field_names
+    records = {}
+    for record in dbf.records:
+        for key in record.keys():
+            if not records.has_key(key):
+                records[key] = [record[key]]
+            else:
+                records[key].append(record[key])
+    return pd.DataFrame(records)
+        
+    
 
 def create_connectivity_matrix(plusflow):
     """

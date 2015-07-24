@@ -64,7 +64,7 @@ VINEYARD_USE_PROFILE_STORAGE = [
     ]
 
 # Use profile for orchards assumes the irrigation season runs from
-# mid-May through mid-October.    
+# mid-May through mid-October.
 ORCHARD_USE_PROFILE = [
     None,
     0.0, #Jan
@@ -112,7 +112,7 @@ WINTER_DOMESTIC_USE = [
     1.0/6.0, #Nov
     1.0/6.0, #Dec
     ]
-        
+
 def left_join(use, pod, use_id, pod_id, suffixes=("_x", "_y")):
     """Perform a left join of two datasets."""
     return pd.merge(use, pod, left_on=use_id, right_on=pod_id,
@@ -147,15 +147,18 @@ def get_rights_data(ewrims_file):
     return left_join(water_rights, application_info, "Application Number", "Application ID",
                      suffixes=("_right", "_info"))
 
-def get_demand(use, use_pod, structure, structure_pod, ewrims,
-               vineyard_profile=VINEYARD_USE_PROFILE):
-    ag_demand = get_ag_demand(use, use_pod, ewrims)
-    structure_demand = get_structure_demand(structure_pod, structure)
+def get_demand(ag_use, structure_use, declared_pod, ewrims,
+               vineyard_profile=VINEYARD_USE_PROFILE, undeclared_pod=None):
+    ag_demand = get_ag_demand(ag_use, declared_pod, ewrims)
+    structure_demand = get_structure_demand(declared_pod, structure_use)
+    if (undeclared_pod):
+        undeclared_demand = get_structure_demand(undeclared_pod, structure_use)
+        structure_demand = structure_demand.concat(undeclared_demand)
     ag_structure = merge_ag_structure(ag_demand, structure_demand)
     rights = add_rights_info(ag_structure, ewrims)
     return disaggregate_monthly(rights, vineyard_profile)
 
-def get_ag_demand(use_file, use_sheet, pod_file, ewrims_file):
+def get_ag_demand(use_file, pod_file):
     """Get a single table with agricultural demand estimates.
 
     The use file is expected to contain the following columns:
@@ -167,21 +170,16 @@ def get_ag_demand(use_file, use_sheet, pod_file, ewrims_file):
     The POD file is expected to contain the following columns:
     - POD_ID : A unique identifier for the point of diversion
     - FEATUREID : The catchment feature ID (from the NHD+V2 dataset) in which the POD lies.
-    
+
     Parameters
     ----------
     use_file : string
         The name of the file with all of the use information.
-    use_sheet : string
-        The name of the worksheet containing the water use information.
     pod_file : string
         The name of the file with the POD locations joined to their catchment.
-    ewrims_file : string
-        The name of the file with water right information downloaded from the
-        eWRIMS database.
     """
     use_data = pd.read_excel(use_file, use_sheet)
-    
+
     pod_data = nhdplus.read_dbf(pod_file)
 
     pod_use = pd.merge(pod_data, use_data, left_on='POD_ID', right_on='POD_ID',
@@ -200,28 +198,28 @@ def get_structure_demand(pods, structures):
     """Get a single table with structure demand estimates.
 
     The structures file is expected to have the following fields:
-    - JOIN_FID: The parcel ID on which the structure lies.
-    - TARGET_FID: A unique identifier for each structure.
+    - PARCEL_ID : The parcel ID on which the structure lies.
+    - STRUCTURE_ID : A unique identifier for each structure.
     - SummerAF: The water demand in the summer (AF)
     - WinterAF: The water demand in the winter (AF)
 
     The POD file is expected to have the following fields:
-    JOIN_FID: The parcel ID on which the POD lies.
-    APPL_ID: The water right application ID.
+    PARCEL_ID : The parcel ID on which the POD lies.
+    APPL_ID : The water right application ID.
     """
-    pod_data = nhdplus.read_dbf(pods)    
+    pod_data = nhdplus.read_dbf(pods)
     structure_data = nhdplus.read_dbf(structures)
-    join = pd.merge(pod_data, structure_data,
-                    left_on='JOIN_FID', right_on='JOIN_FID',
+    join = pd.merge(structure_data, pod_data,
+                    left_on='PARCEL_ID', right_on='PARCEL_ID',
                     how='inner', suffixes=('_pod', '_structure'))
     join['APPL_ID'] = join['APPL_ID'].map(lambda x: x[:-1] if x.endswith('R') else x)
     columns = [
         'APPL_ID',
-        'TARGET_FID_structure',
+        'STRUCT_ID',
         'SummerAF',
         'WinterAF',
         ]
-    return join[columns].groupby('TARGET_FID_structure').agg({
+    return join[columns].groupby('STRUCT_ID').agg({
         'APPL_ID': lambda x: x.iloc[0],
         'SummerAF': lambda x: x.iloc[0],
         'WinterAF': lambda x: x.iloc[0]
@@ -262,7 +260,7 @@ def add_rights_info(demand, ewrims_file):
 
 def disaggregate_monthly(demand, vineyard_profile=VINEYARD_USE_PROFILE):
     """Disaggregate the demand estimate by month.
-    
+
     Estimates are used for the following fields:
     - Vine_Water : Water use for vineyards
     - Orch_Water : Water use for orchards
@@ -273,7 +271,7 @@ def disaggregate_monthly(demand, vineyard_profile=VINEYARD_USE_PROFILE):
 
     for column in ['Vine_Water', 'Orch_Water', 'SummerAF', 'WinterAF']:
         result[column].fillna(0.0, inplace=True)
-    
+
     # Apply the use profiles.
     for i in range(1, 13):
         result[calendar.month_abbr[i]] = \
@@ -282,7 +280,7 @@ def disaggregate_monthly(demand, vineyard_profile=VINEYARD_USE_PROFILE):
           WINTER_DOMESTIC_USE[i] * result["WinterAF"] + \
           SUMMER_DOMESTIC_USE[i] * result["SummerAF"]
     return result
-    
+
 def split_appropriative_riparian(demand):
     """Split appropriative and riparian demand into two datasets"""
     appropriative = demand[demand["Riparian"] == False]
@@ -328,7 +326,7 @@ def create_use_reports(pod_file, ewrims_file):
         "Pre 1914": first,
         "FACEAMT": np.sum
         }
-        
+
     result = convert_ewrims_columns(pod_right[columns]).groupby("APPL_ID").agg(agg).sort("Status Date")
 
     result['Demand Year'] = pd.Series()
@@ -336,7 +334,7 @@ def create_use_reports(pod_file, ewrims_file):
         result[calendar.month_abbr[i]] = pd.Series()
 
     return split_appropriative_riparian(result)
-    
+
 
 def compare_owner_holder(row):
     """Assign a similarity index to a property OWNER and a water right HolderName.

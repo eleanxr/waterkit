@@ -13,7 +13,7 @@ def read_dbf(filename, columns = None):
     """
     """
     dbf = ps.open(filename)
-    
+
     if not columns:
         columns = dbf.header
     data = {col: dbf.by_col(col) for col in columns}
@@ -30,8 +30,8 @@ def read_dbf(filename, columns = None):
             else:
                 records[key].append(record[key])
     return pd.DataFrame(records)
-        
-    
+
+
 
 def subset_plusflow(plusflow, nhdplus_table):
     """
@@ -51,26 +51,26 @@ def create_connectivity_matrix(plusflow):
     features in FROMCOMID and the columns are the features in TOCOMID.
     """
     matrix = pd.crosstab(plusflow['FROMCOMID'], plusflow['TOCOMID'])
-    
+
     # The load may not result in a square matrix. We complete it here.
     rows = set(matrix.index)
     columns = set(matrix.columns)
     featureids = rows.union(columns)
-    
+
     # Add missing rows
     for featureid in featureids.difference(rows):
         matrix.loc[featureid,:] = 0
-    
+
     # Sort the rows by name
     matrix = matrix.reindex_axis(sorted(matrix.index))
-            
+
     # Add missing columns
     for featureid in featureids.difference(columns):
         matrix.loc[:,featureid] = 0
-            
+
     # Sort the columns by name.
     matrix = matrix.reindex_axis(sorted(matrix.columns), axis = 1)
-    
+
     return matrix
 
 def create_global_connectivity_matrix(connectivity):
@@ -81,17 +81,17 @@ def create_global_connectivity_matrix(connectivity):
     """
     # Global connectivity is the transitive closure of local connectivity.
     g = np.copy(connectivity.as_matrix())
-    
+
     n = len(g)
     for k in range(n):
         for i in range(n):
             for j in range(n):
                 g[i, j] = g[i, j] or \
                     (g[i, k] and g[k, j])
-                
+
     # Every catchment is connected to itself.
     for k in range(n): g[k, k]= 1
-    
+
     return pd.DataFrame(g, index = connectivity.index, columns = connectivity.columns)
 
 def read_global_connectivity(plusflow_dataset):
@@ -113,7 +113,7 @@ def to_directed_acyclic_graph(connectivity):
 
 def tree_layout(g):
     """Create a layout that positions the nodes of g in a tree"""
-    return nx.graphviz_layout(g, prog='dot')    
+    return nx.graphviz_layout(g, prog='dot')
 
 def calculate_drainage_area(featureid, catchments, global_connectivity):
     """Calculate the drainage area contributing to a given feature id.

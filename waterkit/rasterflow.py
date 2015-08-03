@@ -56,7 +56,7 @@ class GradedFlowTarget(object):
 
     def __str__(self):
         return "GradedFlowTarget(" + str(self.targets) + ")"
-    
+
 
 def read_data(site_id, start_date, end_date, flow_target=None):
     """
@@ -64,14 +64,33 @@ def read_data(site_id, start_date, end_date, flow_target=None):
     end_date. Adds derived attributes for flow gap data.
     """
     data = usgs_data.get_flow_data(site_id, start_date, end_date)
-    
+
     # Add new columns for easy pivoting.
     add_time_attributes(data)
-    
+
     # Append the derived attributes
     add_flow_gap_attributes(data, flow_target)
-    
+
     return data
+
+def read_excel_data(excelfile, date_column_name, flow_column_name,
+    sheet_name=0, flow_target_column_name=None):
+    """Read flow and optionally gap data from an Excel spreadsheet."""
+    data = pd.read_excel(excelfile, sheetname=sheet_name,
+        index_col=date_column_name)
+
+    add_time_attributes(data)
+
+    # Rename columns for consistency with other input methods.
+    data.index.names = ['date']
+    renamed_columns = {
+        flow_column_name: 'flow',
+    }
+    data.rename(columns = renamed_columns, inplace=True)
+    add_flow_gap_attributes(data, flow_target_column_name)
+
+    return data
+
 
 def get_targets(flow_target, row):
     """
@@ -81,6 +100,8 @@ def get_targets(flow_target, row):
     current_day = pd.Timestamp(row['date']).dayofyear
     if hasattr(flow_target, '__call__'):
         return flow_target(current_day)
+    elif isinstance(flow_target, basestring):
+        return row[flow_target]
     else:
         return flow_target
 
@@ -120,12 +141,12 @@ def raster_plot(data, value, title, colormap=None, norm=None,
     """
     if not ax:
         fig, ax = plt.subplots()
-    
+
     raster_table = create_raster_table(data, value, ascending = False)
     extent = [0, 365, raster_table.index.min(), raster_table.index.max()]
     min_value = data.min()[value]
     max_value = data.max()[value]
-    
+
     plot = ax.imshow(raster_table, interpolation = 'nearest', aspect='auto',
                       extent = extent, cmap=colormap, norm=norm,
                       vmin=vmin, vmax=vmax)
@@ -144,12 +165,12 @@ def raster_plot(data, value, title, colormap=None, norm=None,
         colorbar = fig.colorbar(plot, extend=extend)
         #colorbar.set_ticks([data.min()[value], 0, data.max()[value]])
         #colorbar.set_ticklabels([data.min()[value], 0, data.max()[value]])
-    
+
     axes = plot.get_axes()
     axes.set_xlabel("Month")
     axes.set_ylabel("Year")
     label_months(axes)
-    
+
     ax.set_title(title)
     return ax
 
@@ -164,8 +185,8 @@ def label_months(axes):
     axes.xaxis.set_major_formatter(ticker.NullFormatter())
     minor_formatter = month_formatter()
     axes.xaxis.set_minor_formatter(minor_formatter)
-    
-    
+
+
 def month_formatter():
     """
     Get a matplotlib fixed formatter that will label months by their
@@ -174,7 +195,7 @@ def month_formatter():
     months = pd.date_range("1/1/2015", periods=12, freq="M")
     half_months = months.shift(15, freq="D")
     return ticker.FixedFormatter(half_months.map(lambda d: calendar.month_abbr[d.month]))
-    
+
 def add_flow_gap_attributes(data, flow_target):
     """
     Add instream flow target attributes.
@@ -186,7 +207,7 @@ def add_flow_gap_attributes(data, flow_target):
         data['e-flow-gap'] = data.apply(compute_gap, axis = 1)
         data['e-flow-gap-af'] = data['e-flow-gap'] * CFS_DAY_TO_AF
         data['deficit'] = data.apply(mark_deficit, axis = 1)
-        
+
 def plot_raster_hydrograph(site, start_date, end_date, attribute, title):
     """
     Plot a raster hydrograph with a given attribute.
@@ -197,13 +218,13 @@ def plot_raster_hydrograph(site, start_date, end_date, attribute, title):
     title: The title of the plot.
     """
     data = read_data(site, start_date, end_date)
-    
+
     add_flow_gap_attributes(data)
-    
+
     colormap = create_colormap(data, attribute, matplotlib.cm.coolwarm)
     colormap.set_bad("black")
     raster_plot(data, attribute, title, colormap=colormap, show_colorbar=True)
-    
+
 def plot_monthly_statistics(data, attribute, title):
     """
     Plot the month-by-month statistics for a given attribute
@@ -212,13 +233,13 @@ def plot_monthly_statistics(data, attribute, title):
     """
     plot = data.boxplot(attribute, by='month')
     plt.title(title)
-    
+
     axes = plot.get_axes()
-    
+
     months = pd.date_range("1/1/2015", periods=12, freq="M")
-    
+
     axes.xaxis.set_major_formatter(ticker.FixedFormatter(months.map(lambda d: calendar.month_abbr[d.month])))
-    
+
 def create_colormap(data, attribute, source_map,
                     vmin=None, vmax=None, under=None, over=None):
     """
@@ -237,7 +258,7 @@ def create_colormap(data, attribute, source_map,
         cmap.set_under(under if under else cmap(0.0))
     if max_value < data.max()[attribute]:
         cmap.set_over(over if over else cmap(1.0))
-    
+
     return cmap
 
 def compare_sites(site_ids, start_date, end_date, attribute,

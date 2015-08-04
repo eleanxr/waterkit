@@ -23,3 +23,13 @@ def deficit_days_plot(data, title, fig = None, ax = None):
     join[join['pct'] > 0.0]['pct'].plot(kind = 'bar', ax=ax)
     ax.set_title(title)
     return ax
+
+def deficit_stats_plot(data, title, fig=None, ax=None):
+    """Plot the statistics for days in deficit in af/day."""
+    if not ax:
+        fig, ax = plt.subplots()
+    data['volume-gap'] = 1.9835 * data['e-flow-gap']
+    deficit = data[data['volume-gap'] < 0]
+    deficit.boxplot(by='month', column='e-flow-gap', ax=ax)
+    ax.set_title(title)
+    return ax

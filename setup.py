@@ -13,6 +13,7 @@ requirements = [
     # Choose latest pandas
     'pandas==0.16.2',
     'matplotlib==1.4.3',
+    'pyparsing==2.0.3',
     'dbfread==2.0.4',
     'networkx==1.9.1',
     'xlrd==0.9.3',

@@ -1,13 +1,3 @@
-"""
-Module to read data in the RDB format from the USGS water data
-web service. An example URL call is:
-http://waterservices.usgs.gov/nwis/dv/?format=rdb&indent=on&sites=06043500&startDT=1930-01-01&endDT=2014-12-31&statCd=00003
-
-USGS URL builder:
-http://waterservices.usgs.gov/rest/DV-Test-Tool.html
-
-Choose the USGS RDB format as output.
-"""
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

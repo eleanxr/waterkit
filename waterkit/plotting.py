@@ -18,7 +18,7 @@ def deficit_days_plot(data, title, fig = None, ax = None):
     if not ax:
         fig, ax = plt.subplots()
     days = analysis.deficit_pct(data, 'e-flow-gap', 'month')
-    days[days['pct'] > 0.0]['pct'].plot(kind = 'bar', ax=ax)
+    days['pct'].plot(kind = 'bar', ax=ax)
     ax.set_title(title)
     return ax
 
@@ -27,6 +27,6 @@ def deficit_stats_plot(data, title, fig=None, ax=None):
     if not ax:
         fig, ax = plt.subplots()
     deficit = analysis.deficit_stats(data)
-    deficit.boxplot(by='month', column='e-flow-gap', ax=ax)
+    deficit.boxplot(by='month', column='volume-gap', ax=ax)
     ax.set_title(title)
     return ax

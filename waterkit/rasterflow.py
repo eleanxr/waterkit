@@ -48,23 +48,26 @@ class GradedFlowTarget(object):
         return "GradedFlowTarget(" + str(self.targets) + ")"
 
 
-def read_data(site_id, start_date, end_date, flow_target=None):
+def read_data(site_id, start_date, end_date,
+    target=None, parameter_code=usgs_data.FLOW_PARAMETER_CODE,
+    parameter_name='flow'):
     """
     Read data for the given USGS site id from start_date to
     end_date. Adds derived attributes for flow gap data.
     """
-    data = usgs_data.get_flow_data(site_id, start_date, end_date)
+    data = usgs_data.get_gage_data(site_id, start_date, end_date,
+        parameter_code=parameter_code, parameter_name=parameter_name)
 
     # Add new columns for easy pivoting.
     add_time_attributes(data)
 
     # Append the derived attributes
-    add_flow_gap_attributes(data, flow_target)
+    add_gap_attributes(data, parameter_name, target)
 
     return data
 
-def read_excel_data(excelfile, date_column_name, flow_column_name,
-    sheet_name=0, flow_target_column_name=None):
+def read_excel_data(excelfile, date_column_name, parameter_column_name,
+    sheet_name=0, target_column_name=None):
     """Read flow and optionally gap data from an Excel spreadsheet."""
     data = pd.read_excel(excelfile, sheetname=sheet_name,
         index_col=date_column_name)
@@ -73,33 +76,29 @@ def read_excel_data(excelfile, date_column_name, flow_column_name,
 
     # Rename columns for consistency with other input methods.
     data.index.names = ['date']
-    renamed_columns = {
-        flow_column_name: 'flow',
-    }
-    data.rename(columns = renamed_columns, inplace=True)
-    add_flow_gap_attributes(data, flow_target_column_name)
+    add_gap_attributes(data, parameter_column_name, target_column_name)
 
     return data
 
 
-def get_targets(flow_target, row):
+def get_targets(target, row):
     """
     Create a dataset with e-flow targets given boundaries throughout the
     year.
     """
     current_day = pd.Timestamp(row['date']).dayofyear
-    if hasattr(flow_target, '__call__'):
-        return flow_target(current_day)
-    elif isinstance(flow_target, basestring):
-        return row[flow_target]
+    if hasattr(target, '__call__'):
+        return target(current_day)
+    elif isinstance(target, basestring):
+        return row[target]
     else:
-        return flow_target
+        return target
 
-def compute_gap(row):
+def compute_gap(row, attribute_col, target_col):
     """
     Calculate the difference between actual flow and the instream flow target.
     """
-    return row['flow'] - row['e-flow-target']
+    return row[attribute_col] - row[target_col]
 
 def mark_deficit(row):
     """
@@ -186,34 +185,17 @@ def month_formatter():
     half_months = months.shift(15, freq="D")
     return ticker.FixedFormatter(half_months.map(lambda d: calendar.month_abbr[d.month]))
 
-def add_flow_gap_attributes(data, flow_target):
+def add_gap_attributes(data, attribute, target):
     """
-    Add instream flow target attributes.
+    Add attribute target information.
     """
-    if flow_target:
-        f = lambda row: get_targets(flow_target, row)
-        data['e-flow-target'] = pd.Series(
+    if target:
+        f = lambda row: get_targets(target, row)
+        target_col = attribute + '-target'
+        data[target_col] = pd.Series(
             data.reset_index().apply(f, axis = 1).values, index=data.index)
-        data['e-flow-gap'] = data.apply(compute_gap, axis = 1)
-        data['e-flow-gap-af'] = data['e-flow-gap'] * CFS_DAY_TO_AF
-        data['deficit'] = data.apply(mark_deficit, axis = 1)
-
-def plot_raster_hydrograph(site, start_date, end_date, attribute, title):
-    """
-    Plot a raster hydrograph with a given attribute.
-    site: The USGS site id
-    start_date: The start date for the plot
-    end_date: The end date for the plot
-    attribute: the attribute to plot
-    title: The title of the plot.
-    """
-    data = read_data(site, start_date, end_date)
-
-    add_flow_gap_attributes(data)
-
-    colormap = create_colormap(data, attribute, matplotlib.cm.coolwarm)
-    colormap.set_bad("black")
-    raster_plot(data, attribute, title, colormap=colormap, show_colorbar=True)
+        data[attribute + '-gap'] = data.apply(lambda row: compute_gap(row, attribute, target_col), axis = 1)
+    return data
 
 def plot_monthly_statistics(data, attribute, title):
     """

@@ -11,22 +11,21 @@ import matplotlib.colors
 
 import analysis
 
-def deficit_days_plot(data, title, fig = None, ax = None):
+def deficit_days_plot(data, gap_attribute, title, fig = None, ax = None):
     """
     Plot the percent of days in deficit.
     """
     if not ax:
         fig, ax = plt.subplots()
-    days = analysis.deficit_pct(data, 'e-flow-gap', 'month')
+    days = analysis.deficit_pct(data, gap_attribute, 'month')
     days['pct'].plot(kind = 'bar', ax=ax)
     ax.set_title(title)
     return ax
 
-def deficit_stats_plot(data, title, fig=None, ax=None):
+def deficit_stats_plot(data, gap_attribute, title, fig=None, ax=None):
     """Plot the statistics for days in deficit in af/day."""
     if not ax:
         fig, ax = plt.subplots()
-    deficit = analysis.deficit_stats(data)
-    deficit.boxplot(by='month', column='volume-gap', ax=ax)
+    data[data[gap_attribute] < 0].boxplot(by='month', column=gap_attribute, ax=ax)
     ax.set_title(title)
     return ax

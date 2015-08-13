@@ -23,7 +23,7 @@ def deficit_pct(data, attribute, by):
     total_days = data.groupby(by).count()[attribute]
     join = pd.concat([days_in_deficit, total_days], axis = 1)
     join.columns = ['gap', 'total']
-    join['pct'] = 100.0 * join['gap'] / join['total']
+    join['pct'] = join['gap'] / join['total']
     return join
 
 def compare_scenarios(data_i, data_f, attribute):
@@ -34,4 +34,10 @@ def compare_scenarios(data_i, data_f, attribute):
     ]
     result = pd.concat(columns, axis = 1)
     result.columns = ['Before', 'After', 'Delta']
+    return result
+
+def compare_datasets(datasets, attribute, names=None):
+    result = pd.concat(map(lambda d: d[attribute], datasets), axis=1)
+    if names and len(names) == len(datasets):
+        result.columns = names
     return result

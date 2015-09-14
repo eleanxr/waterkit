@@ -9,6 +9,9 @@ from waterkit import rasterflow
 
 GALLATIN_GATEWAY = "06043500"
 
+import os
+THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+
 def get_target():
     targets =  [
         (("5-15", "7-14"), 800.0),
@@ -49,7 +52,7 @@ class CyclicTargetTest(unittest.TestCase):
 class USGSTest(unittest.TestCase):
     
     def test_load(self):
-        data = rasterflow.read_data(
+        data = rasterflow.read_usgs_data(
             GALLATIN_GATEWAY,
             "1950-01-01",
             "1950-12-31",
@@ -63,7 +66,7 @@ class USGSTest(unittest.TestCase):
         self.assertEqual(set(columns), set(data.columns))
         
     def test_load_with_multiplier(self):
-        data = rasterflow.read_data(
+        data = rasterflow.read_usgs_data(
             GALLATIN_GATEWAY,
             "1950-01-01",
             "1950-12-31",
@@ -74,3 +77,40 @@ class USGSTest(unittest.TestCase):
         expected = 330.0 * 1.9835
         self.assertEqual(expected, data.loc["1950-12-24"]["flow_afd"])
         
+class ExcelTest(unittest.TestCase):
+    
+    def test_load(self):
+        data = rasterflow.read_excel_data(
+            os.path.join(THIS_DIR, "test_excel_data.xlsx"),
+            "Date", "Q_impaired", target_column_name="85pct_standard",
+            sheet_name="Baseline")
+        
+        self.assertEqual("date", data.index.name)
+        columns = [
+            # Spreadsheet columns
+            "Demand",
+            "Allocation",
+            "Shortage",
+            "Q_unimpaired",
+            "Q_impaired",
+            "85pct_standard",
+            "PCT_impaired",
+            "Standard Met?",
+            "Gap?",
+            
+            # derived columns
+            "dayofyear",
+            "year",
+            "month",
+            "Q_impaired-gap",
+            "Q_impaired-target",
+        ]
+        self.assertEqual(set(columns), set(data.columns))
+        
+    def test_load_with_multiplier(self):
+        data = rasterflow.read_excel_data(
+            os.path.join(THIS_DIR, "test_excel_data.xlsx"),
+            "Date", "Q_impaired", target_column_name="85pct_standard",
+            sheet_name="Baseline", multiplier = 1.9835
+        )
+        self.assertAlmostEqual(631.453333538903, data.loc["1958-02-16"]["Q_impaired"])

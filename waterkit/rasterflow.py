@@ -56,8 +56,13 @@ class GradedFlowTarget(object):
     def __str__(self):
         return "GradedFlowTarget(" + str(self.targets) + ")"
 
+def calculate_gap_values(data, parameter_column, target, multiplier):
+    data[parameter_column] = multiplier * data[parameter_column]
+    add_time_attributes(data)
+    add_gap_attributes(data, parameter_column, target)
+    return data
 
-def read_data(site_id, start_date, end_date,
+def read_usgs_data(site_id, start_date, end_date,
     target=None, parameter_code=usgs_data.FLOW_PARAMETER_CODE,
     parameter_name='flow', multiplier=1.0):
     """
@@ -66,31 +71,16 @@ def read_data(site_id, start_date, end_date,
     """
     data = usgs_data.get_gage_data(site_id, start_date, end_date,
         parameter_code=parameter_code, parameter_name=parameter_name)
-    
-    data[parameter_name] = multiplier * data[parameter_name]
-    
-    # Add new columns for easy pivoting.
-    add_time_attributes(data)
-
-    # Append the derived attributes
-    add_gap_attributes(data, parameter_name, target)
-
-    return data
+    return calculate_gap_values(data, parameter_name, target, multiplier)
 
 def read_excel_data(excelfile, date_column_name, parameter_column_name,
-    sheet_name=0, target_column_name=None):
+    sheet_name=0, target_column_name=None, multiplier=1.0):
     """Read flow and optionally gap data from an Excel spreadsheet."""
     data = pd.read_excel(excelfile, sheetname=sheet_name,
         index_col=date_column_name)
-
-    add_time_attributes(data)
-
     # Rename columns for consistency with other input methods.
     data.index.names = ['date']
-    add_gap_attributes(data, parameter_column_name, target_column_name)
-
-    return data
-
+    return calculate_gap_values(data, parameter_column_name, target_column_name, multiplier)
 
 def get_targets(target, row):
     """

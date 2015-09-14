@@ -61,3 +61,16 @@ class USGSTest(unittest.TestCase):
             "month", "usgs_value-target", "usgs_value-gap",
         ]
         self.assertEqual(set(columns), set(data.columns))
+        
+    def test_load_with_multiplier(self):
+        data = rasterflow.read_data(
+            GALLATIN_GATEWAY,
+            "1950-01-01",
+            "1950-12-31",
+            target=get_target(),
+            parameter_name="flow_afd",
+            multiplier=1.9835 # afd/cfs
+        )
+        expected = 330.0 * 1.9835
+        self.assertEqual(expected, data.loc["1950-12-24"]["flow_afd"])
+        

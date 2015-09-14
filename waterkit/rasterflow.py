@@ -59,14 +59,16 @@ class GradedFlowTarget(object):
 
 def read_data(site_id, start_date, end_date,
     target=None, parameter_code=usgs_data.FLOW_PARAMETER_CODE,
-    parameter_name='flow'):
+    parameter_name='flow', multiplier=1.0):
     """
     Read data for the given USGS site id from start_date to
     end_date. Adds derived attributes for flow gap data.
     """
     data = usgs_data.get_gage_data(site_id, start_date, end_date,
         parameter_code=parameter_code, parameter_name=parameter_name)
-
+    
+    data[parameter_name] = multiplier * data[parameter_name]
+    
     # Add new columns for easy pivoting.
     add_time_attributes(data)
 

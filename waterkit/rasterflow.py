@@ -25,6 +25,15 @@ class GradedFlowTarget(object):
         for target in targets:
             self.add(target[0], target[1])
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return other.__dict__ == self.__dict__
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def add(self, interval, value):
         start_day = pd.Timestamp("2000-" + interval[0]).dayofyear
         end_day = pd.Timestamp("2000-" + interval[1]).dayofyear

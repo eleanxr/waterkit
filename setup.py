@@ -18,6 +18,8 @@ requirements = [
     'networkx==1.9.1',
     'xlrd==0.9.3',
     'openpyxl==1.8.6',
+    'scikits.statsmodels==0.3.1',
+    'scipy==0.16.0',
 ]
 
 setup(

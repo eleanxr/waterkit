@@ -12,6 +12,8 @@ GALLATIN_GATEWAY = "06043500"
 import os
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
+from utils import *
+
 def get_target():
     targets =  [
         (("5-15", "7-14"), 800.0),
@@ -80,10 +82,7 @@ class USGSTest(unittest.TestCase):
 class ExcelTest(unittest.TestCase):
     
     def test_load(self):
-        data = rasterflow.read_excel_data(
-            os.path.join(THIS_DIR, "test_excel_data.xlsx"),
-            "Date", "Q_impaired", target_column_name="85pct_standard",
-            sheet_name="Baseline")
+        data = load_excel_data()
         
         self.assertEqual("date", data.index.name)
         columns = [

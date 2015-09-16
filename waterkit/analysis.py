@@ -41,3 +41,99 @@ def compare_datasets(datasets, attribute, names=None):
     if names and len(names) == len(datasets):
         result.columns = names
     return result
+
+def integrate_monthly(data, attribute):
+    """
+    Integrate an attribute on a monthly basis and return a pivoted DataFrame
+    containing the integral value in a table by year and month.
+
+    Parameters
+    ==========
+    data : DataFrame
+        Dataset indexed by measurement date
+    attribute : string
+        Name of the column to integrate.
+    """
+    # Get a DataFrame containing the integrated values multi-indexed
+    # by year and month.
+    year_month_multiindex = data[attribute].groupby(lambda x: x.year).apply(
+        lambda g: g.groupby(lambda x: x.month).sum()
+    )
+    year_month_multiindex.index.names = ['year', 'month']
+    # Pivot the resulting Series on the year/month multi-index to construct
+    # a DataFrame indexed by year and with a column for each month.
+    return year_month_multiindex.reset_index().pivot(
+        index='year', columns='month', values=0)
+
+def integrate_annually(data, attribute):
+    """
+    Integrate an attribute on an annual basis and return a Series containing
+    the integrated values indexed by year.
+    """
+    return data[attribute].groupby(lambda x: x.year).sum()
+
+def monthly_volume_deficit(data, gap_attribute):
+    """
+    Returns a DataFrame indexed by year and with columns containing the
+    integrated volume deficit by month measuring total volume deficit over only
+    those days in which a deficit was recorded.
+
+    Primary input for SNAP indicator 2B, which measures average volume gap over
+    all recorded years. To compute indicator 2B from the output of this function
+    take the average value of each column.
+
+    Parameters
+    ==========
+    data : DataFrame
+        Water data loaded by the rasterflow module with gap attributes.
+    gap_attribute : string
+        Column containing gap data
+    """
+    return integrate_monthly(data[data[gap_attribute] < 0], gap_attribute)
+
+def monthly_volume_target(data, gap_attribute, target_attribute):
+    """
+    Returns a DataFrame indexed by year with columns for each month containing
+    the total volume target over only those days in which a deficit was
+    recorded.
+
+    Parameters
+    ==========
+    data : DataFrame
+        Water data containing both target and gap attributes.
+    gap_attribute: string
+        Name of the column containing the deficit values.
+    target_attribute : string
+        Name of the column containing the target values.
+    """
+    return integrate_monthly(data[data[gap_attribute] < 0], target_attribute)
+
+def annual_volume_deficit(data, gap_attribute):
+    """
+    Get a Series indexed by year containing the volume deficit measured over
+    days in which a deficit was recorded.
+
+    Parameters
+    ==========
+    data : DataFrame
+        Water data indexed by date.
+    gap_attribute : string
+        Column containing the attribute measuring the flow gap.
+    """
+    return integrate_annually(data[data[gap_attribute] < 0], gap_attribute)
+
+def annual_volume_target(data, gap_attribute, target_attribute):
+    """
+    Get a Series indexed by year containing the total target volume over the
+    days in which a deficit was recorded.
+
+    Parameters
+    ==========
+    data : DataFrame
+        Water data containing both target and gap attributes.
+    gap_attribute: string
+        Name of the column containing the deficit values.
+    target_attribute : string
+        Name of the column containing the target values.
+    """
+    return integrate_annually(data[data[gap_attribute] < 0], target_attribute)

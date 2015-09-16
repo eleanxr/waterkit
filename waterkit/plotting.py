@@ -20,17 +20,50 @@ def deficit_days_plot(data, gap_attribute, title, fig = None, ax = None):
     """
     if not ax:
         fig, ax = plt.subplots()
-    days = analysis.deficit_pct(data, gap_attribute, 'month')
+    days = analysis.monthly_deficit_pct(data, gap_attribute)
     days['pct'].plot(kind = 'bar', ax=ax)
     ax.set_title(title)
     return ax
 
-def deficit_stats_plot(data, gap_attribute, title, fig=None, ax=None):
-    """Plot the statistics for days in deficit in af/day."""
+def annual_deficit_days_plot(data, gap_attribute, title, fig=None, ax=None):
+    pct = analysis.annual_deficit_pct(data, gap_attribute)
+    return plot_with_trendline_ols(pct, intercept=True, title=title, fig=fig, ax=ax)
+
+def volume_deficit_monthly(data, gap_attribute, title, fig=None, ax=None):
+    """Plot the average volume deficit by month"""
     if not ax:
         fig, ax = plt.subplots()
-    data[data[gap_attribute] < 0].boxplot(by='month', column=gap_attribute, ax=ax)
+    monthly_values = analysis.monthly_volume_deficit(data, gap_attribute)
+    monthly_values.mean().abs().plot(kind='bar', ax=ax)
     ax.set_title(title)
+    return ax
+
+def volume_deficit_annual(data, gap_attribute, title, fig=None, ax=None):
+    """Plot the total volume deficit by year"""
+    if not ax:
+        fig, ax = plt.subplots()
+    annual_values = analysis.annual_volume_deficit(data, gap_attribute)
+    plot_with_trendline_ols(annual_values.abs(), intercept=True, title=title,
+        fig=fig, ax=ax)
+    return ax
+
+def volume_deficit_pct_monthly(data, gap_attribute, target_attribute, title,
+    fig=None, ax=None):
+    """Plot the volume deficit as percent of target by month"""
+    if not ax:
+        fig, ax = plt.subplots()
+    monthly_values = analysis.monthly_volume_deficit_pct(data, gap_attribute, target_attribute)
+    monthly_values.mean().abs().plot(kind='bar', ax=ax)
+    ax.set_title(title)
+    return ax
+
+def volume_deficit_pct_annual(data, gap_attribute, target_attribute, title, fig=None, ax=None):
+    """Plot the total volume as percent of target deficit by year"""
+    if not ax:
+        fig, ax = plt.subplots()
+    annual_values = analysis.annual_volume_deficit_pct(data, gap_attribute, target_attribute)
+    plot_with_trendline_ols(annual_values.abs(), intercept=True, title=title,
+        fig=fig, ax=ax)
     return ax
 
 def rasterplot(data, attribute, title=None, colormap=None, norm=None,
@@ -167,8 +200,10 @@ def plot_with_trendline_ols(series, intercept=True,
     ols_y = model.beta['x'] * ols_x
     if intercept:
         ols_y = ols_y + model.beta['intercept']
-    series.plot(kind='line', ax = ax)
-    plt.plot(ols_x, ols_y, axes = ax)
+    ax.plot(series.index, series, axes=ax, figure=fig)
+    ax.plot(ols_x, ols_y, axes=ax, figure=fig)
+    ax.legend(['Data', 'Trend (m=%s)' % model.beta['x']])
+    ax.set_xlim(series.index.min(), series.index.max())
 
     if title:
         ax.set_title(title)

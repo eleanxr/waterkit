@@ -131,3 +131,50 @@ def create_colormap(data, attribute, source_map,
         cmap.set_over(over if over else cmap(1.0))
 
     return cmap
+
+def plot_with_trendline_ols(series, intercept=True,
+    title=None, xlabel=None, ylabel=None, fig=None, ax=None):
+    """
+    Plot a series with a trendline using an ordinary least squares regression.
+
+    Parameters
+    ==========
+    series : Series
+        A Series object containing the data to be plotted.
+    intercept : boolean
+        Whether or not to calculate an intercept value (default is True)
+    title : string
+        The plot title
+    xlabel : string
+        X-axis label
+    ylabel : string
+        Y-axis label
+    fig : figure
+        matplotlib figure to plot to
+    ax : axis
+        matplotlib axis
+    """
+    if not ax:
+        fig, ax = plt.subplots()
+    # Convert the Series to a DataFrame
+    regression_data = series.reset_index()
+    regression_data.columns = ['index', 'value']
+    model = pd.ols(
+        x = regression_data['index'],
+        y = regression_data['value'],
+        intercept=intercept)
+    ols_x = np.array(series.index)
+    ols_y = model.beta['x'] * ols_x
+    if intercept:
+        ols_y = ols_y + model.beta['intercept']
+    series.plot(kind='line', ax = ax)
+    plt.plot(ols_x, ols_y, axes = ax)
+
+    if title:
+        ax.set_title(title)
+
+    if xlabel:
+        ax.xaxis.set_label(xlabel)
+    if ylabel:
+        ax.yaxis.set_label(ylabel)
+    return ax

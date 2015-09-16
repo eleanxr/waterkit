@@ -137,3 +137,43 @@ def annual_volume_target(data, gap_attribute, target_attribute):
         Name of the column containing the target values.
     """
     return integrate_annually(data[data[gap_attribute] < 0], target_attribute)
+
+def monthly_volume_deficit_pct(data, gap_attribute, target_attribute):
+    """
+    Get the total monthly volume deficit as a fraction of the target.
+
+    Primary input for SNAP indicator 2A.
+
+    Parameters
+    =========
+    data : DataFrame
+        Water data containing both target and gap attributes.
+    gap_attribute: string
+        Name of the column containing the deficit values.
+    target_attribute : string
+        Name of the column containing the target values.
+    """
+    deficit_data = data[data[gap_attribute] < 0]
+    deficit = monthly_volume_deficit(deficit_data, gap_attribute).abs()
+    target = monthly_volume_target(deficit_data, gap_attribute, target_attribute)
+    return deficit / target
+
+def annual_volume_deficit_pct(data, gap_attribute, target_attribute):
+    """
+    Get the total annual volume deficit as a fraction of the target.
+
+    Primary input for SNAP indicator 2A.
+
+    Parameters
+    =========
+    data : DataFrame
+        Water data containing both target and gap attributes.
+    gap_attribute: string
+        Name of the column containing the deficit values.
+    target_attribute : string
+        Name of the column containing the target values.
+    """
+    deficit_data = data[data[gap_attribute] < 0]
+    deficit = annual_volume_deficit(deficit_data, gap_attribute).abs()
+    target = annual_volume_target(deficit_data, gap_attribute, target_attribute)
+    return deficit / target

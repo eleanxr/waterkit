@@ -59,7 +59,7 @@ class GradedFlowTarget(object):
 def calculate_gap_values(data, parameter_column, target, multiplier):
     data[parameter_column] = multiplier * data[parameter_column]
     add_time_attributes(data)
-    add_gap_attributes(data, parameter_column, target)
+    add_gap_attributes(data, parameter_column, target, multiplier)
     return data
 
 def read_usgs_data(site_id, start_date, end_date,
@@ -95,28 +95,16 @@ def get_targets(target, row):
     else:
         return target
 
-def compute_gap(row, attribute_col, target_col):
-    """
-    Calculate the difference between actual flow and the instream flow target.
-    """
-    return row[attribute_col] - row[target_col]
-
-def mark_deficit(row):
-    """
-    Mark days where the actual flow does not mean the instream flow value.
-    """
-    return 1 if row['e-flow-gap'] < 0.0 else 0
-
-def add_gap_attributes(data, attribute, target):
+def add_gap_attributes(data, attribute, target, multiplier):
     """
     Add attribute target information.
     """
     if target:
         f = lambda row: get_targets(target, row)
         target_col = attribute + '-target'
-        data[target_col] = pd.Series(
+        data[target_col] = multiplier * pd.Series(
             data.reset_index().apply(f, axis = 1).values, index=data.index)
-        data[attribute + '-gap'] = data.apply(lambda row: compute_gap(row, attribute, target_col), axis = 1)
+        data[attribute + '-gap'] = data[attribute] - data[target_col]
     return data
 
 def compare_sites(site_ids, start_date, end_date, attribute,

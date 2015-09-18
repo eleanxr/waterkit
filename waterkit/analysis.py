@@ -47,6 +47,12 @@ def compare_datasets(datasets, attribute, names=None):
         result.columns = names
     return result
 
+def compare_series(series, names=None):
+    result = pd.concat(series, axis=1)
+    if names and len(names) == len(series):
+        result.columns = names
+    return result
+
 def integrate_monthly(data, attribute):
     """
     Integrate an attribute on a monthly basis and return a pivoted DataFrame
@@ -150,7 +156,7 @@ def monthly_volume_deficit_pct(data, gap_attribute, target_attribute):
     Primary input for SNAP indicator 2A.
 
     Parameters
-    =========
+    ==========
     data : DataFrame
         Water data containing both target and gap attributes.
     gap_attribute: string
@@ -182,3 +188,8 @@ def annual_volume_deficit_pct(data, gap_attribute, target_attribute):
     deficit = annual_volume_deficit(deficit_data, gap_attribute).abs()
     target = annual_volume_target(deficit_data, gap_attribute, target_attribute)
     return deficit / target
+
+def delta_matrix(series):
+    """Compute a matrix of difference values between all items in a series"""
+    d = {i: series - series.loc[i] for i in series.index}
+    return pd.DataFrame.from_dict(d, orient='index')

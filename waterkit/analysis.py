@@ -19,12 +19,9 @@ def create_yearly_totals(data, attributes):
 
 def monthly_deficit_pct(data, attribute):
     """Get a DataFrame containing the percentage of days in deficit."""
-    days_in_deficit = data[data[attribute] < 0].groupby(lambda x: x.month).count()[attribute]
-    total_days = data.groupby(lambda x: x.month).count()[attribute]
-    join = pd.concat([days_in_deficit, total_days], axis = 1)
-    join.columns = ['gap', 'total']
-    join['pct'] = join['gap'] / join['total']
-    return join
+    days_in_deficit = data[data[attribute] < 0][attribute].groupby(lambda x: x.month).count()
+    total_days = data[attribute].groupby(lambda x: x.month).count()
+    return (days_in_deficit / total_days).dropna()
 
 def annual_deficit_pct(data, attribute):
     days_in_deficit = data[data[attribute] < 0][attribute].groupby(lambda x: x.year).count()

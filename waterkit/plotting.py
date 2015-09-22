@@ -21,7 +21,7 @@ def deficit_days_plot(data, gap_attribute, title, fig = None, ax = None):
     if not ax:
         fig, ax = plt.subplots()
     days = analysis.monthly_deficit_pct(data, gap_attribute)
-    days['pct'].plot(kind = 'bar', ax=ax)
+    days.plot(kind = 'bar', ax=ax)
     ax.set_title(title)
     return ax
 

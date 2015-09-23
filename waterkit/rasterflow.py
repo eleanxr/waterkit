@@ -34,6 +34,9 @@ class GradedFlowTarget(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash(tuple(self.targets))
+
     def add(self, interval, value):
         start_day = pd.Timestamp("2000-" + interval[0]).dayofyear
         end_day = pd.Timestamp("2000-" + interval[1]).dayofyear

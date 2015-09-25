@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+CFS_TO_AFD = 1.9835
+
 def create_raster_table(data, value, ascending = True):
     """
     Creates the raster table from the dataframe using
@@ -50,37 +52,44 @@ def compare_series(series, names=None):
         result.columns = names
     return result
 
-def integrate_monthly(data, attribute):
+def integrate_monthly(series, dt=1.0):
     """
     Integrate an attribute on a monthly basis and return a pivoted DataFrame
     containing the integral value in a table by year and month.
 
     Parameters
     ==========
-    data : DataFrame
-        Dataset indexed by measurement date
-    attribute : string
-        Name of the column to integrate.
+    series : Series
+        Daily values indexed by measurement date
+    dt : float
+        Time delta for daily integration.
     """
     # Get a DataFrame containing the integrated values multi-indexed
     # by year and month.
-    year_month_multiindex = data[attribute].groupby(lambda x: x.year).apply(
+    year_month_multiindex = series.groupby(lambda x: x.year).apply(
         lambda g: g.groupby(lambda x: x.month).sum()
-    )
-    year_month_multiindex.index.names = ['year', 'month']
+    ) * dt
     # Pivot the resulting Series on the year/month multi-index to construct
     # a DataFrame indexed by year and with a column for each month.
+    year_month_multiindex.index.names = ['year', 'month']
     return year_month_multiindex.reset_index().pivot(
         index='year', columns='month', values=0)
 
-def integrate_annually(data, attribute):
+def integrate_annually(series, dt=1.0):
     """
     Integrate an attribute on an annual basis and return a Series containing
     the integrated values indexed by year.
-    """
-    return data[attribute].groupby(lambda x: x.year).sum()
 
-def monthly_volume_deficit(data, gap_attribute):
+    Parameters
+    ==========
+    series : Series
+        Daily values indexed by measurement date
+    dt : 
+        Time delta for daily integration.
+    """
+    return series.groupby(lambda x: x.year).sum() * dt
+
+def monthly_volume_deficit(data, gap_attribute, unit_multiplier=1.0):
     """
     Returns a DataFrame indexed by year and with columns containing the
     integrated volume deficit by month measuring total volume deficit over only
@@ -96,10 +105,14 @@ def monthly_volume_deficit(data, gap_attribute):
         Water data loaded by the rasterflow module with gap attributes.
     gap_attribute : string
         Column containing gap data
+    unit_multiplier : float
+        Multiplication factor to convert input units to acre-feet per day.
     """
-    return integrate_monthly(data[data[gap_attribute] < 0], gap_attribute)
+    return integrate_monthly(
+        unit_multiplier * data[data[gap_attribute] < 0][gap_attribute])
 
-def monthly_volume_target(data, gap_attribute, target_attribute):
+def monthly_volume_target(data, gap_attribute, target_attribute,
+    unit_multiplier=1.0):
     """
     Returns a DataFrame indexed by year with columns for each month containing
     the total volume target over only those days in which a deficit was
@@ -113,10 +126,13 @@ def monthly_volume_target(data, gap_attribute, target_attribute):
         Name of the column containing the deficit values.
     target_attribute : string
         Name of the column containing the target values.
+    unit_multiplier : float
+        Multiplication factor to convert input units to acre-feet per day.
     """
-    return integrate_monthly(data[data[gap_attribute] < 0], target_attribute)
+    return integrate_monthly(
+        unit_multiplier * data[data[gap_attribute] < 0][target_attribute])
 
-def annual_volume_deficit(data, gap_attribute):
+def annual_volume_deficit(data, gap_attribute, unit_multiplier=1.0):
     """
     Get a Series indexed by year containing the volume deficit measured over
     days in which a deficit was recorded.
@@ -127,10 +143,14 @@ def annual_volume_deficit(data, gap_attribute):
         Water data indexed by date.
     gap_attribute : string
         Column containing the attribute measuring the flow gap.
+    unit_multiplier : float
+        Multiplication factor to convert input units to acre-feet per day.
     """
-    return integrate_annually(data[data[gap_attribute] < 0], gap_attribute)
+    return integrate_annually(
+        unit_multiplier * data[data[gap_attribute] < 0][gap_attribute])
 
-def annual_volume_target(data, gap_attribute, target_attribute):
+def annual_volume_target(data, gap_attribute, target_attribute,
+    unit_multiplier=1.0):
     """
     Get a Series indexed by year containing the total target volume over the
     days in which a deficit was recorded.
@@ -143,10 +163,14 @@ def annual_volume_target(data, gap_attribute, target_attribute):
         Name of the column containing the deficit values.
     target_attribute : string
         Name of the column containing the target values.
+    unit_multiplier : float
+        Multiplication factor to convert input units to acre-feet per day.
     """
-    return integrate_annually(data[data[gap_attribute] < 0], target_attribute)
+    return integrate_annually(
+        unit_multiplier * data[data[gap_attribute] < 0][target_attribute])
 
-def monthly_volume_deficit_pct(data, gap_attribute, target_attribute):
+def monthly_volume_deficit_pct(data, gap_attribute, target_attribute,
+    unit_multiplier=1.0):
     """
     Get the total monthly volume deficit as a fraction of the target.
 
@@ -160,13 +184,20 @@ def monthly_volume_deficit_pct(data, gap_attribute, target_attribute):
         Name of the column containing the deficit values.
     target_attribute : string
         Name of the column containing the target values.
+    unit_multiplier : float
+        Multiplication factor to convert input units to acre-feet per day.
     """
     deficit_data = data[data[gap_attribute] < 0]
-    deficit = monthly_volume_deficit(deficit_data, gap_attribute).abs()
-    target = monthly_volume_target(deficit_data, gap_attribute, target_attribute)
+    deficit = monthly_volume_deficit(
+        deficit_data, gap_attribute,
+        unit_multiplier=unit_multiplier).abs()
+    target = monthly_volume_target(
+        deficit_data, gap_attribute, target_attribute,
+        unit_multiplier=unit_multiplier)
     return deficit / target
 
-def annual_volume_deficit_pct(data, gap_attribute, target_attribute):
+def annual_volume_deficit_pct(data, gap_attribute, target_attribute,
+    unit_multiplier=1.0):
     """
     Get the total annual volume deficit as a fraction of the target.
 
@@ -180,10 +211,15 @@ def annual_volume_deficit_pct(data, gap_attribute, target_attribute):
         Name of the column containing the deficit values.
     target_attribute : string
         Name of the column containing the target values.
+    unit_multiplier : float
+        Multiplication factor to convert input units to acre-feet per day.
     """
     deficit_data = data[data[gap_attribute] < 0]
-    deficit = annual_volume_deficit(deficit_data, gap_attribute).abs()
-    target = annual_volume_target(deficit_data, gap_attribute, target_attribute)
+    deficit = annual_volume_deficit(
+        deficit_data, gap_attribute,
+        unit_multiplier=unit_multiplier).abs()
+    target = annual_volume_target(deficit_data, gap_attribute,
+        target_attribute, unit_multiplier=unit_multiplier)
     return deficit / target
 
 def delta_matrix(series):

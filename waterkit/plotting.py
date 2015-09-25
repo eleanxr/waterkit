@@ -37,7 +37,7 @@ def volume_deficit_monthly(data, gap_attribute, title, fig=None, ax=None):
     if not ax:
         fig, ax = plt.subplots()
     monthly_values = analysis.monthly_volume_deficit(data, gap_attribute, analysis.CFS_TO_AFD)
-    monthly_values.mean().abs().plot(kind='bar', ax=ax)
+    monthly_values.abs().boxplot(ax=ax)
     ax.set_title(title)
     return ax
 
@@ -60,7 +60,7 @@ def volume_deficit_pct_monthly(data, gap_attribute, target_attribute, title,
         fig, ax = plt.subplots()
     monthly_values = analysis.monthly_volume_deficit_pct(data, gap_attribute, target_attribute,
         analysis.CFS_TO_AFD)
-    monthly_values.mean().abs().plot(kind='bar', ax=ax)
+    monthly_values.abs().boxplot(ax=ax)
     ax.set_title(title)
     return ax
 

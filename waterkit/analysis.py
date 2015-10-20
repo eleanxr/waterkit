@@ -72,8 +72,9 @@ def integrate_monthly(series, dt=1.0):
     # Pivot the resulting Series on the year/month multi-index to construct
     # a DataFrame indexed by year and with a column for each month.
     year_month_multiindex.index.names = ['year', 'month']
+    year_month_multiindex.name = "monthly"
     return year_month_multiindex.reset_index().pivot(
-        index='year', columns='month', values=0)
+        index='year', columns='month', values="monthly")
 
 def integrate_annually(series, dt=1.0):
     """

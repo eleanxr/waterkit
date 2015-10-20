@@ -144,8 +144,8 @@ def label_months(axes):
     months = pd.date_range("1/1/2015", periods=12, freq="M")
     half_months = months.shift(15, freq="D")
     #axes.set_xticks(months)
-    major_locator = ticker.FixedLocator(months.map(lambda d: d.dayofyear))
-    minor_locator = ticker.FixedLocator(half_months.map(lambda d: d.dayofyear))
+    major_locator = ticker.FixedLocator(months.map(lambda d: int(d.dayofyear)))
+    minor_locator = ticker.FixedLocator(half_months.map(lambda d: int(d.dayofyear)))
     axes.xaxis.set_major_locator(major_locator)
     axes.xaxis.set_minor_locator(minor_locator)
     axes.xaxis.set_major_formatter(ticker.NullFormatter())
@@ -197,20 +197,25 @@ def plot_with_trendline_ols(series, intercept=True,
     """
     if not ax:
         fig, ax = plt.subplots()
-    # Convert the Series to a DataFrame
-    regression_data = series.reset_index()
-    regression_data.columns = ['index', 'value']
-    model = pd.ols(
-        x = regression_data['index'],
-        y = regression_data['value'],
-        intercept=intercept)
-    ols_x = np.array(series.index)
-    ols_y = model.beta['x'] * ols_x
-    if intercept:
-        ols_y = ols_y + model.beta['intercept']
-    ax.plot(series.index, series, axes=ax, figure=fig)
-    ax.plot(ols_x, ols_y, axes=ax, figure=fig)
-    ax.legend(['Data', 'Trend (m=%s)' % model.beta['x']])
+    ax.plot(series.index, series, 'ro', axes=ax, figure=fig)
+    legend = ['Data']
+    
+    # If there's enough data, plot a trendline.
+    if len(series) >= 2:
+        regression_data = series.reset_index()
+        regression_data.columns = ['index', 'value']
+        model = pd.ols(
+            x = regression_data['index'],
+            y = regression_data['value'],
+            intercept=intercept)
+        ols_x = np.array(series.index)
+        ols_y = model.beta['x'] * ols_x
+        if intercept:
+            ols_y = ols_y + model.beta['intercept']
+        ax.plot(ols_x, ols_y, axes=ax, figure=fig)
+        legend.append('Trend (m=%.05f)' % model.beta['x'])
+    
+    ax.legend(legend)
     ax.set_xlim(series.index.min(), series.index.max())
 
     if title:

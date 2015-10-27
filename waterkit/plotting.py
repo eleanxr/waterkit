@@ -197,7 +197,7 @@ def plot_with_trendline_ols(series, intercept=True,
     """
     if not ax:
         fig, ax = plt.subplots()
-    ax.plot(series.index, series, 'ro', axes=ax, figure=fig)
+    ax.plot(series.index, series, axes=ax, figure=fig)
     legend = ['Data']
     
     # If there's enough data, plot a trendline.

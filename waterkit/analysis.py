@@ -227,3 +227,21 @@ def delta_matrix(series):
     """Compute a matrix of difference values between all items in a series"""
     d = {i: series - series.loc[i] for i in series.index}
     return pd.DataFrame.from_dict(d, orient='index')
+
+def annual_minimum(series, period, by_wateryear=False):
+    """Calculate the annual minimum of the rolling average
+
+    Parameters
+    ==========
+    series : Series
+        Date-indexed series
+    period : integer
+        Size of the averaging window in days
+    by_wateryear : boolean
+        Compute the value by water year rather than by calendar year
+    """
+    if by_wateryear:
+        group_f = lambda x: x.year if x.month < 10 else x.year + 1
+    else:
+        group_f = lambda x: x.year
+    return series.groupby(group_f).apply(pd.rolling_mean, period).groupby(group_f).min()

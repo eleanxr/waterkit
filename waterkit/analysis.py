@@ -245,3 +245,20 @@ def annual_minimum(series, period, by_wateryear=False):
     else:
         group_f = lambda x: x.year
     return series.groupby(group_f).apply(pd.rolling_mean, period).groupby(group_f).min()
+
+def linear_regression(series, intercept):
+    """Calculate an OLS regression for a series.
+    """
+    regression_data = series.reset_index()
+    regression_data.columns = ['index', 'value']
+    return pd.ols(
+        x = regression_data['index'],
+        y = regression_data['value'],
+        intercept=intercept)
+    
+def low_flow_trend_pct(series, period, by_wateryear=False):
+    """Calculate the low flow trend as a fraction of its average.
+    """
+    lowflow = annual_minimum(series, period, by_wateryear)
+    model = linear_regression(lowflow, True)
+    return model.beta['x'] / lowflow.mean()

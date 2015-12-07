@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from timeutil import get_wateryear
+
 CFS_TO_AFD = 1.9835
 
 def create_raster_table(data, value, ascending = True):
@@ -27,7 +29,7 @@ def monthly_deficit_pct(data, attribute):
 
 def annual_deficit_pct(data, attribute):
     days_in_deficit = data[data[attribute] < 0][attribute].groupby(lambda x: x.year).count()
-    total_days = data[attribute].groupby(lambda x: x.year).count();
+    total_days = data[attribute].groupby(get_wateryear).count();
     return days_in_deficit / total_days
 
 def compare_scenarios(data_i, data_f, attribute):
@@ -88,7 +90,7 @@ def integrate_annually(series, dt=1.0):
     dt : 
         Time delta for daily integration.
     """
-    return series.groupby(lambda x: x.year).sum() * dt
+    return series.groupby(get_wateryear).sum() * dt
 
 def monthly_volume_deficit(data, gap_attribute, unit_multiplier=1.0):
     """

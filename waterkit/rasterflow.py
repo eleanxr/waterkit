@@ -10,23 +10,18 @@ import calendar
 import colormap
 import usgs_data
 
+from timeutil import get_wateryear
+
 WATER_RIGHT_BOUNDARIES = [pd.Timestamp("2000-05-15").dayofyear, pd.Timestamp('2000-07-15').dayofyear]
 
 CFS_DAY_TO_AF = 1.9835
-
-def wateryear(month, calendar_year):
-    if month >= 10:
-        return calendar_year + 1
-    else:
-        return calendar_year
 
 def add_time_attributes(data):
     data["dayofyear"] = data.index.dayofyear
     data["year"] = data.index.year
     data["month"] = data.index.month
 
-    f = lambda row: wateryear(row['month'], row['year'])
-    data["wateryear"] = data.apply(f, axis=1)
+    data["wateryear"] = data.index.map(get_wateryear)
 
 class GradedFlowTarget(object):
     def __init__(self, targets=[]):

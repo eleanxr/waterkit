@@ -2,9 +2,11 @@ import pandas as pd
 
 import locale
 
+from urllib import urlencode, quote_plus
+
 def read_nass_data(url):
     locale.setlocale(locale.LC_NUMERIC, "")
-    
+
     # Column specific NA values
     na_values = {
         # Note the space in front below!
@@ -33,7 +35,10 @@ class NASS:
 
 
 class NASSDataSource(object):
-    
+    """
+    Provides access to the USDA NASS data source for agriculture data.
+    """
+
     BASE_URL = "http://quickstats.nass.usda.gov/api/api_GET/?"
 
     def __init__(self, apikey):
@@ -53,7 +58,7 @@ class NASSDataSource(object):
         Fetch data with the given parameters.
 
         Returns results in a Pandas DataFrame.
-        
+
         Parameters
         ==========
         params : List of tuples
@@ -61,8 +66,10 @@ class NASSDataSource(object):
             containing the query parameters for the USDA NASS service.
         """
         querystring = "key=" + self.apikey
-        querystring += '&format=CSV&' + '&'.join(
-            map(lambda t: reduce(lambda a, b: a + b, t), params))
+        def encode(p):
+            return p[0] + p[1] + quote_plus(p[2])
+        querystring += '&format=CSV&' + '&'.join(map(encode, params))
+        print querystring
         return read_nass_data(NASSDataSource.BASE_URL + querystring)
 
 class NASSQueryBuilder(object):
@@ -70,22 +77,28 @@ class NASSQueryBuilder(object):
         self.params = []
 
     def state(self, state):
+        """Set the US state to get data for."""
         self.params.append(['state_alpha', NASS.EQUAL, state])
         return self
 
     def county(self, county):
+        """Set the county to get data for"""
         self.params.append(['county_name', NASS.EQUAL, county])
         return self
 
     def param(self, name, value, compare=NASS.EQUAL):
-        match = filter(lambda t: t[0] == name, self.params)
-        if match:
-            l = match[0]
-            l[0] = name
-            l[1] = compare
-            l[2] = value
-        else:
-            self.params.append([name, compare, value])
+        """Set a query parameter.
+
+        Parameters
+        ==========
+        name : string
+            The parameter name.
+        value : string
+            The parameter value.
+        compare : string
+            The comparison to use. Defaults to NASS.EQUAL.
+        """
+        self.params.append([name, compare, value])
         return self
 
     def get(self):
@@ -93,7 +106,3 @@ class NASSQueryBuilder(object):
 
     def __str__(self):
         return "NASSQueryBuilder " + self.params
-
-
-
-        

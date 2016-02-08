@@ -2,7 +2,8 @@ import pandas as pd
 
 import locale
 
-from urllib import urlencode, quote_plus
+import json
+from urllib import urlencode, quote_plus, urlopen
 
 def read_nass_data(url):
     locale.setlocale(locale.LC_NUMERIC, "")
@@ -39,7 +40,10 @@ class NASSDataSource(object):
     Provides access to the USDA NASS data source for agriculture data.
     """
 
-    BASE_URL = "http://quickstats.nass.usda.gov/api/api_GET/?"
+    BASE_URL = "http://quickstats.nass.usda.gov/api/%s/?key=%s&%s"
+
+    def __formaturl(self, operation, querystring):
+        return NASSDataSource.BASE_URL % (operation, self.apikey, querystring)
 
     def __init__(self, apikey):
         """
@@ -65,12 +69,19 @@ class NASSDataSource(object):
             List of tuples of the form (param_name, comparison, value)
             containing the query parameters for the USDA NASS service.
         """
-        querystring = "key=" + self.apikey
         def encode(p):
             return p[0] + p[1] + quote_plus(p[2])
-        querystring += '&format=CSV&' + '&'.join(map(encode, params))
-        print querystring
-        return read_nass_data(NASSDataSource.BASE_URL + querystring)
+        querystring = '&format=CSV&' + '&'.join(map(encode, params))
+        return read_nass_data(self.__formaturl('api_GET', querystring))
+
+    def listvalues(self, param):
+        """List the set of all possible values for a parameter"""
+        query = {
+            "param": param,
+        }
+        url = self.__formaturl('get_param_values', urlencode(query))
+        response = urlopen(url)
+        return json.loads(response.read())[param]
 
 class NASSQueryBuilder(object):
     def __init__(self):

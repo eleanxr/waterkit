@@ -11,7 +11,7 @@ requirements = [
     # Choose pandas for numpy 1.7.1
     # 'pandas==0.13.1',
     # Choose latest pandas
-    'pandas==0.16.2',
+    'pandas==0.17.1',
     'matplotlib==1.4.3',
     'pyparsing==2.0.3',
     'dbfread==2.0.4',

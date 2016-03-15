@@ -48,41 +48,108 @@ NASS_COLUMNS = [
     #'CV (%)',
 ]
 
-class NASSCropMixDataSet(object):
+class CropGroup(object):
+    """
+    Provides a group of crops, with a title, a set of labels that should be
+    considered part of the group, and an overall consumptive use estimate
+    for the crop types in the group.
+    """
+    def __init__(self, title, revenue, labor, niwr, items=[]):
+        self.title = title
+        self.revenue = revenue
+        self.labor = labor
+        self.niwr = niwr
+        self.items = items
 
+    def __str__(self):
+        return "%s: %s" % (self.title, ", ".join(self.items))
+
+class NASSCropMixDataSet(object):
     def __init__(self, client, state, county, years, commodities=[],
-        source='CENSUS'):
+        source='CENSUS', crop_groups=[]):
         query = NASSQueryBuilder()
         query.state(state).county(county)
         query.param('unit_desc', 'ACRES')
-        query.param('unit_desc', '$')
-        #query.param('prodn_practice_desc', 'ALL PRODUCTION PRACTICES')
-        #query.param('util_practice_desc', 'ALL UTILIZATION PRACTICES')
-        #query.param('class_desc', 'ALL CLASSES')
+        query.param('prodn_practice_desc', 'ALL PRODUCTION PRACTICES')
+        query.param('util_practice_desc', 'ALL UTILIZATION PRACTICES')
+        query.param('class_desc', 'ALL CLASSES')
         query.param('sector_desc', 'CROPS')
         query.param('statisticcat_desc', 'AREA HARVESTED')
-        query.param('statisticcat_desc', 'SALES')
         query.param('source_desc', source)
         for year in years:
             query.param('year', str(year))
         for commodity in commodities:
             query.param('commodity_desc', commodity)
-        self.data = client.fetch(query.get())[NASS_COLUMNS].dropna()
+        nass_data = client.fetch(query.get())[NASS_COLUMNS].dropna()
+        self.data = nass_data
         self.tables = {}
 
-    def get_table(self, unit):
+    def _merge_groups(self, groups):
+        group_records = [
+            {
+                'Group': g.title,
+                'Item': item,
+                'Revenue': g.revenue,
+                'Labor': g.labor,
+                'NIWR': g.niwr,
+            }
+            for g in groups
+            for item in g.items
+        ]
+        group_data = pd.DataFrame.from_dict(group_records)
+        return self.data.merge(
+            group_data,
+            left_on = 'commodity_desc',
+            right_on = 'Item',
+            how = 'left'
+        )
+
+    def get_group_map(self, groups):
+        """Get the mapping from NASS item to group for the specified groups.
+        Returns a tuple. The first item in the tuple contains a dictionary
+        mapping group names to the items it contains, and the second item
+        in the tuple contains a list of all uncategorized items.
+        """
+        group_data = self._merge_groups(groups)
+        grouped = group_data.groupby("Group")
+        result = {}
+        for group, items in grouped:
+            result[group] = items['commodity_desc'].unique().tolist()
+        uncategorized = group_data[group_data['Group'].isnull()]['commodity_desc'].unique().tolist()
+        return result, uncategorized
+
+    def get_table(self, unit, groups=None):
         """
         Get a table with the complete acreage of each crop type indexed by year.
         """
+        if groups:
+            table_data = self._merge_groups(groups)
+            table_data["Group"].fillna("Other", inplace=True)
+            table_data["Item"].fillna("Other", inplace=True)
+        else:
+            table_data = self.data
+
         return pd.pivot_table(
-            self.data[self.data['unit_desc'] == unit],
+            table_data[table_data['unit_desc'] == unit],
             index = 'year',
-            columns='commodity_desc',
-            values='Value'
+            columns='Group' if groups else 'commodity_desc',
+            values='Value',
+            aggfunc=np.sum,
         )
 
-    def get_ratio_table(self, unit):
-        table = self.get_table(unit)
+    def get_derived_table(self, mult_column, groups):
+        table_data = self._merge_groups(groups)
+        table_data["Total"] = table_data["Value"] * table_data[mult_column]
+        return pd.pivot_table(
+            table_data,
+            index = 'year',
+            columns = 'Group',
+            values = 'Total',
+            aggfunc = np.sum,
+        )
+
+    def get_ratio_table(self, unit, groups=None):
+        table = self.get_table(unit, groups)
         return table.div(table.sum(axis = 1), axis = 0)
 
 def select_top_n_columns(table, n, group_label="Other"):

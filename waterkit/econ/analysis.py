@@ -70,11 +70,13 @@ class NASSCropMixDataSet(object):
         query = NASSQueryBuilder()
         query.state(state).county(county)
         query.param('unit_desc', 'ACRES')
-        query.param('prodn_practice_desc', 'ALL PRODUCTION PRACTICES')
-        query.param('util_practice_desc', 'ALL UTILIZATION PRACTICES')
-        query.param('class_desc', 'ALL CLASSES')
+        query.param('unit_desc', '$')
+        #query.param('prodn_practice_desc', 'ALL PRODUCTION PRACTICES')
+        #query.param('util_practice_desc', 'ALL UTILIZATION PRACTICES')
+        #query.param('class_desc', 'ALL CLASSES')
         query.param('sector_desc', 'CROPS')
         query.param('statisticcat_desc', 'AREA HARVESTED')
+        query.param('statisticcat_desc', 'SALES')
         query.param('source_desc', source)
         for year in years:
             query.param('year', str(year))
@@ -138,7 +140,8 @@ class NASSCropMixDataSet(object):
         )
 
     def get_derived_table(self, mult_column, groups):
-        table_data = self._merge_groups(groups)
+        merged = self._merge_groups(groups)
+        table_data = merged[merged['unit_desc'] == 'ACRES']
         table_data["Total"] = table_data["Value"] * table_data[mult_column]
         return pd.pivot_table(
             table_data,

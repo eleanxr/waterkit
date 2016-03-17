@@ -65,27 +65,13 @@ class CropGroup(object):
     def __str__(self):
         return "%s: %s" % (self.title, ", ".join(self.items))
 
-class NASSCropMixDataSet(object):
-    def __init__(self, client, state, county, years, commodities=[],
-        source='CENSUS', crop_groups=[], production_practices=[]):
-        query = NASSQueryBuilder()
-        query.state(state).county(county)
-        query.param('unit_desc', 'ACRES')
-        query.param('unit_desc', '$')
-        query.param('class_desc', 'ALL CLASSES')
-        query.param('sector_desc', 'CROPS')
-        query.param('statisticcat_desc', 'AREA HARVESTED')
-        query.param('statisticcat_desc', 'SALES')
-        query.param('source_desc', source)
-        for year in years:
-            query.param('year', str(year))
-        for commodity in commodities:
-            query.param('commodity_desc', commodity)
-        for production_practice in production_practices:
-            query.param('prodn_practice_desc', production_practice)
-        nass_data = client.fetch(query.get())[NASS_COLUMNS].dropna()
-        self.data = nass_data
-        self.tables = {}
+class CropMixDataSet(object):
+    """Contains a DataFrame with crop mix data and methods for querying the
+    DataFrame for different parameters and aggregations.
+    """
+
+    def __init__(self, data):
+        self.data = data
 
     def _merge_groups(self, groups):
         group_records = [
@@ -155,6 +141,55 @@ class NASSCropMixDataSet(object):
     def get_ratio_table(self, unit, groups=None):
         table = self.get_table(unit, groups)
         return table.div(table.sum(axis = 1), axis = 0)
+
+class NASSCropMixDataSet(CropMixDataSet):
+    """CropMixDataSet derived from querying the USDA NASS web services."""
+    def __init__(self, client, state, county, years, commodities=[],
+        source='CENSUS', crop_groups=[], production_practices=[]):
+        query = NASSQueryBuilder()
+        query.state(state).county(county)
+        query.param('unit_desc', 'ACRES')
+        query.param('unit_desc', '$')
+        query.param('class_desc', 'ALL CLASSES')
+        query.param('sector_desc', 'CROPS')
+        query.param('statisticcat_desc', 'AREA HARVESTED')
+        query.param('statisticcat_desc', 'SALES')
+        query.param('source_desc', source)
+        for year in years:
+            query.param('year', str(year))
+        for commodity in commodities:
+            query.param('commodity_desc', commodity)
+        for production_practice in production_practices:
+            query.param('prodn_practice_desc', production_practice)
+        nass_data = client.fetch(query.get())[NASS_COLUMNS].dropna()
+        super(NASSCropMixDataSet, self).__init__(nass_data)
+
+class ExcelCropMixDataSet(CropMixDataSet):
+    """CropMixDataSet derived from a Microsoft Excel file."""
+    def __init__(self, excelfile, sheetname=0, year_column='year',
+        crop_column='commodity_desc', unit_column='unit_desc'):
+        """Initialize with an Excel file, specifying columns for different values
+
+        Parameters
+        ==========
+        excelfile : string, filelike
+            The Excel file to read data from.
+        sheetname : int, string
+            The sheet name or index to read data from.
+        year_column : string
+            The column labeling the year.
+        crop_column : string
+            The column labeling the crop.
+        unit_column : string
+            The column labeling the units.
+        """
+        data = pd.read_excel(excelfile)
+        data = data.rename({
+            year_column: "year",
+            crop_column: "commodity_desc",
+            unit_column: "unit_desc",
+        })
+        super(ExcelCropMixDataSet, self).__init__(data)
 
 def select_top_n_columns(table, n, group_label="Other"):
     """Create a new DataFrame given a table that selects the top n items by

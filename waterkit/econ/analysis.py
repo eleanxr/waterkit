@@ -54,7 +54,8 @@ class CropGroup(object):
     considered part of the group, and an overall consumptive use estimate
     for the crop types in the group.
     """
-    def __init__(self, title, revenue, labor, niwr, items=[]):
+    def __init__(self, title, revenue, labor, niwr,
+        items=[]):
         self.title = title
         self.revenue = revenue
         self.labor = labor
@@ -66,14 +67,12 @@ class CropGroup(object):
 
 class NASSCropMixDataSet(object):
     def __init__(self, client, state, county, years, commodities=[],
-        source='CENSUS', crop_groups=[]):
+        source='CENSUS', crop_groups=[], production_practices=[]):
         query = NASSQueryBuilder()
         query.state(state).county(county)
         query.param('unit_desc', 'ACRES')
         query.param('unit_desc', '$')
-        #query.param('prodn_practice_desc', 'ALL PRODUCTION PRACTICES')
-        #query.param('util_practice_desc', 'ALL UTILIZATION PRACTICES')
-        #query.param('class_desc', 'ALL CLASSES')
+        query.param('class_desc', 'ALL CLASSES')
         query.param('sector_desc', 'CROPS')
         query.param('statisticcat_desc', 'AREA HARVESTED')
         query.param('statisticcat_desc', 'SALES')
@@ -82,6 +81,8 @@ class NASSCropMixDataSet(object):
             query.param('year', str(year))
         for commodity in commodities:
             query.param('commodity_desc', commodity)
+        for production_practice in production_practices:
+            query.param('prodn_practice_desc', production_practice)
         nass_data = client.fetch(query.get())[NASS_COLUMNS].dropna()
         self.data = nass_data
         self.tables = {}

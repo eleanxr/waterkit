@@ -247,11 +247,29 @@ def read_annual_cpi(api_key, begin_year, end_year):
         ranges = [(year, min(year + 20, end_year)) for year in request_bounds]
         return pd.concat(map(internal_read, ranges))
 
-def adjust_cpi(table, api_key, ref_year):
-    """Adjust a table indexed by year using the consumer price index."""
-    # Grab enough CPI data for all the years we care about.
-    minimum = min(table.index.min(), ref_year)
-    maximum = max(table.index.max(), ref_year)
-    cpi = read_annual_cpi(api_key, minimum, maximum)
-    cpi_multipliers = cpi / cpi.ix[ref_year]
+def adjust_cpi(table, api_key, ref_year, cpi_data=pd.Series()):
+    """Adjust a table indexed by year using the consumer price index.
+    
+    If cpi_data is None, then this function will dynamically query the BLS web
+    services to obtain an appropriate CPI dataset. Otherwise, the input CPI
+    data will be used.
+
+    Parameters
+    ==========
+    table : DataFrame
+        The data table to adjust using the CPI.
+    api_key : string
+        An API Key to use for querying the BLS web service.
+    ref_year : int
+        The adjustment year for prices.
+    cpi_data : Series
+        A series of CPI values, indexed by year.
+    """
+    if cpi_data.empty:
+        minimum = min(table.index.min(), ref_year)
+        maximum = max(table.index.max(), ref_year)
+        cpi = read_annual_cpi(api_key, minimum, maximum)
+        cpi_multipliers = cpi / cpi.ix[ref_year]
+    else:
+        cpi_multipliers = cpi_data / cpi_data.ix[ref_year]
     return table.apply(lambda r: r * cpi_multipliers.ix[r.index])

@@ -107,7 +107,11 @@ def bar_plot_table(table, **kwargs):
     return revenue_plot
 
 def line_plot_series(series, **kwargs):
-    p = figure(plot_width=400, plot_height=400)
+    p = figure(
+        plot_width=400,
+        plot_height=400,
+        tools=kwargs.get("tools", None)
+    )
     if kwargs.has_key('title'):
         p.title = kwargs["title"]
     if kwargs.has_key("xlabel"):
@@ -123,6 +127,7 @@ def line_plot_series(series, **kwargs):
         p.x_range = kwargs["x_range"]
     if kwargs.has_key("y_range"):
         p.y_range = kwargs["y_range"]
+    p.logo = kwargs.get("logo", None)
 
     p.line(
         series.index,

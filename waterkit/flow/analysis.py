@@ -28,7 +28,7 @@ def monthly_deficit_pct(data, attribute):
     return (days_in_deficit / total_days).dropna()
 
 def annual_deficit_pct(data, attribute):
-    days_in_deficit = data[data[attribute] < 0][attribute].groupby(lambda x: x.year).count()
+    days_in_deficit = data[data[attribute] < 0][attribute].groupby(get_wateryear).count()
     total_days = data[attribute].groupby(get_wateryear).count();
     return days_in_deficit / total_days
 

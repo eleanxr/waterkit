@@ -9,6 +9,10 @@ def read_usdm_download(csv_file, attribute="percentCurrent"):
     Returns a DataFrame indexed by date with columns for each drought level
     (D0-D4). The values will be the specified attribute in each USDM level.
 
+    This function returns a daily dataset suitable for merging with other daily
+    values. It obtains daily values by filling forward from the previously
+    measured weekly values.
+
     Parameters
     ==========
     csv_file : string or file-like
@@ -16,46 +20,26 @@ def read_usdm_download(csv_file, attribute="percentCurrent"):
     attribute : string
         The attribute to measure.
     """
-    raw = pd.read_csv(
+    df = pd.read_csv(
         csv_file,
-        parse_dates=[11],
-        converters={
-            "USDMlevel": lambda s: s.strip()
-        },
-    )
-    df = raw.pivot(
-        index="releaseDate",
-        columns="USDMlevel",
-        values="percentCurrent"
+        parse_dates=[0],
+        index_col=0,
+        usecols=["releaseDate", "NONE", "D0", "D1", "D2", "D3", "D4"]
     )
     
     begin_date = df.index.min()
     end_date = df.index.max()
-    release_days = pd.date_range(begin_date, end_date, freq="W-TUE")
-    no_drought = pd.DataFrame(
-        {"None": 100.0},
-        index=release_days
-    )
-    no_drought["None"][df.index] = 100.0 - df.sum(axis=1)
-    no_drought["None"][no_drought["None"] < 0.0] = 0.0
-
-    merged = no_drought.merge(df, 
-        how='left',
-        left_index=True,
-        right_index=True
-    )
-
     full_range = pd.date_range(begin_date, end_date, freq="D")
-    merged = merged.reindex(full_range)
+    df = df.reindex(full_range)
 
     # We'll loop to do this for now. We need to forward fill the dataframe, but
     # only for rows that contain all NaN values. I can't find a way to make
     # fillna only apply a forward fill when all columns are NaN.
-    last_value = merged.ix[0]
-    for i in merged.index:
-        if merged.ix[i].isnull().all():
-            merged.ix[i] = last_value
-        last_value = merged.ix[i]
+    last_value = df.ix[0]
+    for i in df.index:
+        if df.ix[i].isnull().all():
+            df.ix[i] = last_value
+        last_value = df.ix[i]
 
-    return merged
+    return df
 

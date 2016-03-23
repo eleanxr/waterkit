@@ -69,25 +69,38 @@ def calculate_gap_values(data, parameter_column, target, multiplier):
     add_gap_attributes(data, parameter_column, target, multiplier)
     return data
 
+def filter_season(data, season):
+    begin = pd.Timestamp("2000-" + season[0]).dayofyear
+    end = pd.Timestamp("2000-" + season[1]).dayofyear
+    return data[(data.index.dayofyear > begin) & (data.index.dayofyear < end)]
+
 def read_usgs_data(site_id, start_date, end_date,
     target=None, parameter_code=usgs_data.FLOW_PARAMETER_CODE,
-    parameter_name='flow', multiplier=1.0):
+    parameter_name='flow', multiplier=1.0, season=None):
     """
     Read data for the given USGS site id from start_date to
     end_date. Adds derived attributes for flow gap data.
     """
     data = usgs_data.get_gage_data(site_id, start_date, end_date,
         parameter_code=parameter_code, parameter_name=parameter_name)
-    return calculate_gap_values(data, parameter_name, target, multiplier)
+    gap_data = calculate_gap_values(data, parameter_name, target, multiplier)
+    if season:
+        return filter_season(gap_data, season)
+    else:
+        return gap_data
 
 def read_excel_data(excelfile, date_column_name, parameter_column_name,
-    sheet_name=0, target_column_name=None, multiplier=1.0):
+    sheet_name=0, target_column_name=None, multiplier=1.0, season=None):
     """Read flow and optionally gap data from an Excel spreadsheet."""
     data = pd.read_excel(excelfile, sheetname=sheet_name,
         index_col=date_column_name)
     # Rename columns for consistency with other input methods.
     data.index.names = ['date']
-    return calculate_gap_values(data, parameter_column_name, target_column_name, multiplier)
+    gap_data = calculate_gap_values(data, parameter_column_name, target_column_name, multiplier)
+    if season:
+        return filter_season(gap_data, season)
+    else:
+        return gap_data
 
 def get_targets(target, row):
     """

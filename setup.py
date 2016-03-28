@@ -18,7 +18,6 @@ requirements = [
     'networkx==1.9.1',
     'xlrd==0.9.3',
     'openpyxl==1.8.6',
-    'scipy==0.16.0',
 ]
 
 setup(

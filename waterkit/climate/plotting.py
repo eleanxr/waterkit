@@ -43,14 +43,9 @@ def regplot_conditions(df, gapattr):
     for condition, ax in items:
         sns.jointplot(condition, gapattr, data=df[df[condition] > 0], kind='reg', ax=ax)
 
-def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
-    quantile=0.1):
-    """Plot temporal flow deficit and drought condition using flow data only.
-    """
-    drought_years = analysis.drought_years_from_flow(flowdata[flow_attribute], quantile)
-    annual_deficit = flow_analysis.annual_deficit_pct(flowdata, gap_attribute)
-    merged = annual_deficit.to_frame(name="Temporal Deficit").merge(
-        drought_years.to_frame(name="Drought"),
+def _merge_with_drought(annual_data, drought_data):
+    merged = annual_data.to_frame(name="Annual").merge(
+        drought_data.to_frame(name="Drought"),
         how='left',
         left_index=True,
         right_index=True
@@ -58,18 +53,48 @@ def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
     merged["Drought Label"] = merged["Drought"].map(
         lambda v: "No Drought" if np.isnan(v) else "Drought"
     )
-    bardata = merged.reset_index()
+    return merged
+
+def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
+    quantile=0.1):
+    """Plot temporal flow deficit and drought condition using flow data only.
+    """
+    drought_years = analysis.drought_years_from_flow(flowdata[flow_attribute], quantile)
+    annual_deficit = flow_analysis.annual_deficit_pct(flowdata, gap_attribute)
+    merged = _merge_with_drought(annual_deficit, drought_years)
     plot = Bar(
         data=merged,
         label="index",
-        values="Temporal Deficit",
+        values="Annual",
         color="Drought Label",
         agg='max',
-        #legend="top_right",
+        #legend="top_right", #FIXME: The label doesn't display in the legend correctly
         title="Temporal Deficit and Drought ({0:.0%} Drought Year)".format(quantile),
         xlabel="year",
         ylabel=""
     )
     plot.y_range = Range1d(0.0, 1.0)
     plot._yaxis.formatter = NumeralTickFormatter(format="0%")
+    return plot
+
+def plot_volume_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
+    quantile=0.1):
+    """Plot volume flow deficit and drought condition using flow data only.
+    """
+    drought_years = analysis.drought_years_from_flow(flowdata[flow_attribute], quantile)
+    annual_deficit = flow_analysis.annual_volume_deficit(
+        flowdata, gap_attribute
+    ).abs()
+    merged = _merge_with_drought(annual_deficit, drought_years)
+    plot = Bar(
+        data=merged,
+        label="index",
+        values="Annual",
+        color="Drought Label",
+        agg="max",
+        title="Volume Deficit and Drought ({0:.0%} Drought Year)".format(quantile),
+        xlabel="Year",
+        ylabel="Volume Deficit (Acre-Feet)"
+    )
+    plot._yaxis.formatter = NumeralTickFormatter(format="0,0")
     return plot

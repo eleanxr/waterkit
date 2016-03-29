@@ -56,12 +56,19 @@ def _merge_with_drought(annual_data, drought_data):
     return merged
 
 def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
-    quantile=0.1):
+    drought_years=None, quantile=0.1, drought_year_label=None):
     """Plot temporal flow deficit and drought condition using flow data only.
     """
-    drought_years = analysis.drought_years_from_flow(flowdata[flow_attribute], quantile)
+    if drought_years is None:
+        drought_years = analysis.drought_years_from_flow(
+            flowdata[flow_attribute], quantile)
     annual_deficit = flow_analysis.annual_deficit_pct(flowdata, gap_attribute)
     merged = _merge_with_drought(annual_deficit, drought_years)
+    title = "Temporal Deficit During Drought"
+    if drought_year_label:
+        title = title + " " + drought_year_label
+    else:
+        title = title + " ({0:.0%} Drought Year)".format(quantile)
     plot = Bar(
         data=merged,
         label="index",
@@ -69,7 +76,7 @@ def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
         color="Drought Label",
         agg='max',
         #legend="top_right", #FIXME: The label doesn't display in the legend correctly
-        title="Temporal Deficit and Drought ({0:.0%} Drought Year)".format(quantile),
+        title=title,
         xlabel="year",
         ylabel=""
     )
@@ -78,21 +85,28 @@ def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
     return plot
 
 def plot_volume_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
-    quantile=0.1):
+    drought_years=None, quantile=0.1, drought_year_label=None):
     """Plot volume flow deficit and drought condition using flow data only.
     """
-    drought_years = analysis.drought_years_from_flow(flowdata[flow_attribute], quantile)
+    if drought_years is None:
+        drought_years = analysis.drought_years_from_flow(
+            flowdata[flow_attribute], quantile)
     annual_deficit = flow_analysis.annual_volume_deficit(
         flowdata, gap_attribute
     ).abs()
     merged = _merge_with_drought(annual_deficit, drought_years)
+    title = "Volume Deficit and Drought"
+    if drought_year_label:
+        title = title + " " + drought_year_label
+    else:
+        title = title + " ({0:.0%} Drought Year)".format(quantile)
     plot = Bar(
         data=merged,
         label="index",
         values="Annual",
         color="Drought Label",
         agg="max",
-        title="Volume Deficit and Drought ({0:.0%} Drought Year)".format(quantile),
+        title=title,
         xlabel="Year",
         ylabel="Volume Deficit (Acre-Feet)"
     )

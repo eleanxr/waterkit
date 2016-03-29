@@ -27,9 +27,19 @@ def monthly_deficit_pct(data, attribute):
     total_days = data[attribute].groupby(lambda x: x.month).count()
     return (days_in_deficit / total_days).dropna()
 
-def annual_deficit_pct(data, attribute):
-    days_in_deficit = data[data[attribute] < 0][attribute].groupby(get_wateryear).count()
-    total_days = data[attribute].groupby(get_wateryear).count();
+def annual_deficit_pct(data, attribute=None):
+    """Calculate the temporal deficit for all recorded years.
+
+    Parameters
+    ==========
+    data : Series or DataFrame
+        Daily flow deficit values.
+    attribute : string
+        If input data is a DataFrame, indicates the column to use.
+    """
+    series = data[attribute] if attribute else data
+    days_in_deficit = series[series < 0].groupby(get_wateryear).count()
+    total_days = series.groupby(get_wateryear).count();
     return days_in_deficit / total_days
 
 def compare_scenarios(data_i, data_f, attribute):
@@ -87,7 +97,7 @@ def integrate_annually(series, dt=1.0):
     ==========
     series : Series
         Daily values indexed by measurement date
-    dt : 
+    dt :
         Time delta for daily integration.
     """
     return series.groupby(get_wateryear).sum() * dt
@@ -257,7 +267,7 @@ def linear_regression(series, intercept):
         x = regression_data['index'],
         y = regression_data['value'],
         intercept=intercept)
-    
+
 def low_flow_trend_pct(series, period, by_wateryear=False):
     """Calculate the low flow trend as a fraction of its average.
     """

@@ -1,8 +1,16 @@
 import pandas as pd
+import numpy as np
 
 import seaborn as sns
 
 import matplotlib.pyplot as plt
+
+from bokeh.charts import Bar
+from bokeh.models import Range1d, NumeralTickFormatter
+
+from . import analysis
+
+import waterkit.flow.analysis as flow_analysis
 
 def regplot_condition(df, condition, gapattr, threshold=0.0):
     sns.jointplot(condition, gapattr, df[df[condition] > threshold], kind='reg')
@@ -35,4 +43,33 @@ def regplot_conditions(df, gapattr):
     for condition, ax in items:
         sns.jointplot(condition, gapattr, data=df[df[condition] > 0], kind='reg', ax=ax)
 
-
+def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
+    quantile=0.1):
+    """Plot temporal flow deficit and drought condition using flow data only.
+    """
+    drought_years = analysis.drought_years_from_flow(flowdata[flow_attribute], quantile)
+    annual_deficit = flow_analysis.annual_deficit_pct(flowdata, gap_attribute)
+    merged = annual_deficit.to_frame(name="Temporal Deficit").merge(
+        drought_years.to_frame(name="Drought"),
+        how='left',
+        left_index=True,
+        right_index=True
+    )
+    merged["Drought Label"] = merged["Drought"].map(
+        lambda v: "No Drought" if np.isnan(v) else "Drought"
+    )
+    bardata = merged.reset_index()
+    plot = Bar(
+        data=merged,
+        label="index",
+        values="Temporal Deficit",
+        color="Drought Label",
+        agg='max',
+        #legend="top_right",
+        title="Temporal Deficit and Drought ({0:.0%} Drought Year)".format(quantile),
+        xlabel="year",
+        ylabel=""
+    )
+    plot.y_range = Range1d(0.0, 1.0)
+    plot._yaxis.formatter = NumeralTickFormatter(format="0%")
+    return plot

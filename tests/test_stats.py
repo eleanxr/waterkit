@@ -13,8 +13,8 @@ class OLSRegressionModelTest(unittest.TestCase):
         self.model = stats.OLSRegressionModel(self.series)
 
     def test_init(self):
-        self.assertAlmostEqual(self.model.model[0], 1.0)
-        self.assertAlmostEqual(self.model.model[1], 0.0)
+        self.assertAlmostEqual(self.model.slope, 1.0)
+        self.assertAlmostEqual(self.model.intercept, 0.0)
 
     def test_predict_no_x(self):
         series = self.model.predict()

@@ -204,10 +204,10 @@ def plot_with_trendline_ols(series, intercept=True,
 
     # If there's enough data, plot a trendline.
     if len(series) >= 2:
-        model = stats.OLSRegressionModel
+        model = stats.OLSRegressionModel(series)
         predicted_series = model.predict()
         ax.plot(predicted_series.index, predicted_series, axes=ax, figure=fig)
-        legend.append('Trend (m=%.05f)' % model.beta['x'])
+        legend.append('Trend (m=%.05f)' % model.slope)
 
     ax.legend(legend)
     ax.set_xlim(series.index.min(), series.index.max())

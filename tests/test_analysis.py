@@ -4,7 +4,7 @@ Test cases for the waterkit.analysis module.
 
 import unittest
 
-from waterkit import analysis
+from waterkit.flow import analysis
 
 from utils import *
 
@@ -48,7 +48,7 @@ class VolumeGapTest(unittest.TestCase):
         self.assertEqual(-7, result[1].iloc[0])
         self.assertEqual(-12, result[2].iloc[0])
         self.assertEqual(-4, result[3].iloc[0])
-    
+
     def test_monthly_volume_deficit_unit_convert(self):
         data = test_data()
         result = analysis.monthly_volume_deficit(data, 0, unit_multiplier=2.0)
@@ -66,7 +66,7 @@ class VolumeGapTest(unittest.TestCase):
         self.assertEqual(20, result[1].iloc[0])
         self.assertEqual(30, result[2].iloc[0])
         self.assertEqual(25, result[3].iloc[0])
-    
+
     def test_monthly_volume_target_unit_convert(self):
         data = test_data()
         result = analysis.monthly_volume_target(data, 0, 1, 2.0)
@@ -80,7 +80,7 @@ class VolumeGapTest(unittest.TestCase):
         data = test_data()
         result = analysis.annual_volume_deficit(data, 0)
         self.assertItemsEqual([-23, -19], result)
-    
+
     def test_annual_volume_deficit_unit_convert(self):
         data = test_data()
         result = analysis.annual_volume_deficit(data, 0, unit_multiplier=2.0)
@@ -90,7 +90,7 @@ class VolumeGapTest(unittest.TestCase):
         data = test_data()
         result = analysis.annual_volume_target(data, 0, 1)
         self.assertItemsEqual([75, 60], result)
-    
+
     def test_annual_volume_target_unit_convert(self):
         data = test_data()
         result = analysis.annual_volume_target(data, 0, 1, 2.0)

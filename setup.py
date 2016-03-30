@@ -28,5 +28,6 @@ setup(
     author_email='wdicharry@gmail.com',
     install_requires=requirements,
     packages=['waterkit'],
-    test_suite="tests"
+    test_suite="nose.collector",
+    tests_require=["nose"],
 )

@@ -1,5 +1,5 @@
 
-from waterkit import rasterflow
+from waterkit.flow import rasterflow
 
 import os
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))

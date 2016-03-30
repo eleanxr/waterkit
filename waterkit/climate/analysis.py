@@ -3,6 +3,8 @@ import pandas as pd
 from waterkit.flow.timeutil import get_wateryear
 import waterkit.flow.analysis as flow_analysis
 
+import usdm
+
 def assign_condition(df):
     """Assign a condition category based on which drought category contains the
     largest land percentage.
@@ -18,7 +20,14 @@ def assign_condition(df):
         return row.idxmax()
     return df[columns].apply(assign, axis=1)
 
-def drought_years_from_flow(flowdata, quantile=0.1):
+class DroughtYearAnalysis(object):
+    def label_years(self):
+        """Label drought years with True or False depending on whether or not
+        they meet the configured drought criteria.
+        """
+        raise NotImplementedError()
+
+class DroughtYearFromFlowAnalysis(DroughtYearAnalysis):
     """Get the list of drought years based on a flow dataset.
 
     This function will remove all data from years that do not contain a complete
@@ -36,29 +45,45 @@ def drought_years_from_flow(flowdata, quantile=0.1):
     quantile : number
         Quantile to use when identifying drought years.
     """
-    groups = flowdata.groupby(get_wateryear)
-    full_years = groups.filter(lambda g: g.count() >= 365)
-    volumes = full_years.groupby(get_wateryear).sum() * flow_analysis.CFS_TO_AFD
-    threshold = volumes.quantile(quantile)
-    return volumes[volumes <= threshold]
+    def __init__(self, flowdata, quantile=0.1):
+        self.flowdata = flowdata
+        self.quantile = quantile
+        groups = self.flowdata.groupby(get_wateryear)
+        full_years = groups.filter(lambda g: g.count() >= 365)
+        volumes = full_years.groupby(get_wateryear).sum() * flow_analysis.CFS_TO_AFD
+        self.volumes = volumes
 
-def drought_years_from_usdm(usdmdata, area_threshold=0.05, time_threshold=0.5):
+    def label_years(self):
+        threshold = self.volumes.quantile(self.quantile)
+        return self.volumes.map(
+            lambda v: True if v <= threshold else False
+        )
+
+class DroughtYearFromUsdmAnalysis(DroughtYearAnalysis):
     """Get the list of drought years based on a US Drought Monitor dataset.
 
     Parameters
-    ==========
+    ----------
     usdmdata : Series
         USDM Dataset of traditional statistics for the desired drought level
         indexed by date.
     level : string
-        USDM drought level to use (D0 - D4).
+        USDM level to consider as drought.
     area_threshold : number
         Area fraction to consider for in-drought classification.
     time_threshold : number
         Time fraction to consider for in-drought classification.
     """
-    groups = usdmdata.groupby(timeutil.get_wateryear)
-    full_years = groups.filter(lambda g: g.count() >= 365)
-    drought_days = full_years[full_years > 100.0 * area_threshold]
-    fractions = drought_days.groupby(timeutil.get_wateryear).count() / 365
-    return fractions#fractions > time_threshold]
+    def __init__(self, usdmfile, level, area_threshold, time_threshold):
+        self.usdmdata = usdm.read_usdm_download(usdmfile)
+        self.area_threshold = area_threshold
+        self.time_threshold = time_threshold
+        groups = self.usdmdata[level].groupby(timeutil.get_wateryear)
+        full_years = groups.filter(lambda g: g.count() >= 365)
+        drought_days = full_years > 100.0 * area_threshold
+        self.fractions = drought_days.groupby(timeutil.get_wateryear).sum() / 365
+
+    def label_years(self):
+        return self.fractions.map(
+            lambda v: True if v > self.time_threshold else False
+        )

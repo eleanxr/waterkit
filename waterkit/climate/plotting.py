@@ -43,72 +43,54 @@ def regplot_conditions(df, gapattr):
     for condition, ax in items:
         sns.jointplot(condition, gapattr, data=df[df[condition] > 0], kind='reg', ax=ax)
 
-def _merge_with_drought(annual_data, drought_data):
-    merged = annual_data.to_frame(name="Annual").merge(
-        drought_data.to_frame(name="Drought"),
-        how='left',
-        left_index=True,
-        right_index=True
-    )
-    merged["Drought Label"] = merged["Drought"].map(
-        lambda v: "No Drought" if np.isnan(v) else "Drought"
-    )
-    return merged
+class DroughtPlotBuilder(object):
+    """Build a plot of a flow indicator during drought.
 
-def plot_temporal_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
-    drought_years=None, quantile=0.1, drought_year_label=None):
-    """Plot temporal flow deficit and drought condition using flow data only.
+    Parameters
+    ----------
+    flow_data : Series
+    gap_data : Series
+    drought_analysis : analysis.DroughtYearAnalysis
     """
-    if drought_years is None:
-        drought_years = analysis.drought_years_from_flow(
-            flowdata[flow_attribute], quantile)
-    annual_deficit = flow_analysis.annual_deficit_pct(flowdata, gap_attribute)
-    merged = _merge_with_drought(annual_deficit, drought_years)
-    title = "Temporal Deficit During Drought"
-    if drought_year_label:
-        title = title + " " + drought_year_label
-    else:
-        title = title + " ({0:.0%} Drought Year)".format(quantile)
-    plot = Bar(
-        data=merged,
-        label="index",
-        values="Annual",
-        color="Drought Label",
-        agg='max',
-        #legend="top_right", #FIXME: The label doesn't display in the legend correctly
-        title=title,
-        xlabel="year",
-        ylabel=""
-    )
-    plot.y_range = Range1d(0.0, 1.0)
-    plot._yaxis.formatter = NumeralTickFormatter(format="0%")
-    return plot
+    def __init__(self, drought_analysis, annual_data, **plotargs):
+        self._drought_analysis = drought_analysis
+        self._annual_data = annual_data
+        self._plot = None
+        self._plotargs = plotargs
 
-def plot_volume_deficit_and_drought(flowdata, flow_attribute, gap_attribute,
-    drought_years=None, quantile=0.1, drought_year_label=None):
-    """Plot volume flow deficit and drought condition using flow data only.
-    """
-    if drought_years is None:
-        drought_years = analysis.drought_years_from_flow(
-            flowdata[flow_attribute], quantile)
-    annual_deficit = flow_analysis.annual_volume_deficit(
-        flowdata, gap_attribute
-    ).abs()
-    merged = _merge_with_drought(annual_deficit, drought_years)
-    title = "Volume Deficit and Drought"
-    if drought_year_label:
-        title = title + " " + drought_year_label
-    else:
-        title = title + " ({0:.0%} Drought Year)".format(quantile)
-    plot = Bar(
-        data=merged,
-        label="index",
-        values="Annual",
-        color="Drought Label",
-        agg="max",
-        title=title,
-        xlabel="Year",
-        ylabel="Volume Deficit (Acre-Feet)"
-    )
-    plot._yaxis.formatter = NumeralTickFormatter(format="0,0")
-    return plot
+    def _merge_with_drought(self, annual_data, drought_data):
+        merged = annual_data.to_frame(name="Annual").merge(
+            drought_data.to_frame(name="Drought"),
+            how='left',
+            left_index=True,
+            right_index=True
+        )
+        merged["Drought Label"] = merged["Drought"].map(
+            lambda v: "No Drought" if np.isnan(v) else "Drought"
+        )
+        return merged
+
+    def _create_plot(self):
+        drought_years = self._drought_analysis.label_years()
+        merged = self._annual_data.to_frame(name="Annual").merge(
+            drought_years.to_frame(name="InDrought"),
+            how='left',
+            left_index=True,
+            right_index=True)
+        return Bar(
+            data=merged,
+            label="index",
+            values="Annual",
+            color="InDrought",
+            agg='sum',
+            #FIXME: The label doesn't display in the legend correctly
+            #legend="top_right",
+            xlabel="Year",
+            **self._plotargs
+        )
+
+    @property
+    def plot(self):
+        if not self._plot:
+            self._plot = self._create_plot
+        return self._plot

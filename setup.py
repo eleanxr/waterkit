@@ -7,7 +7,7 @@ requirements = [
     # Choose numpy for ArcGIS 10.2
     # 'numpy==1.7.1',
     # Choose latest numpy
-    'numpy==1.9.2',
+    'numpy==1.11.0',
     # Choose pandas for numpy 1.7.1
     # 'pandas==0.13.1',
     # Choose latest pandas

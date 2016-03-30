@@ -14,6 +14,8 @@ import calendar
 import analysis
 import colormap
 
+from waterkit.tools import stats
+
 def deficit_days_plot(data, gap_attribute, title, fig = None, ax = None):
     """
     Plot the percent of days in deficit.
@@ -43,7 +45,7 @@ def volume_deficit_monthly(data, gap_attribute, title, fig=None, ax=None):
 
 def volume_deficit_annual(data, gap_attribute, title, fig=None, ax=None):
     """Plot the total volume deficit by year
-    
+
     Input data assumed to be cfs, output is af.
     """
     if not ax:
@@ -199,22 +201,14 @@ def plot_with_trendline_ols(series, intercept=True,
         fig, ax = plt.subplots()
     ax.plot(series.index, series, axes=ax, figure=fig)
     legend = ['Data']
-    
+
     # If there's enough data, plot a trendline.
     if len(series) >= 2:
-        regression_data = series.reset_index()
-        regression_data.columns = ['index', 'value']
-        model = pd.ols(
-            x = regression_data['index'],
-            y = regression_data['value'],
-            intercept=intercept)
-        ols_x = np.array(series.index)
-        ols_y = model.beta['x'] * ols_x
-        if intercept:
-            ols_y = ols_y + model.beta['intercept']
-        ax.plot(ols_x, ols_y, axes=ax, figure=fig)
+        model = stats.OLSRegressionModel
+        predicted_series = model.predict()
+        ax.plot(predicted_series.index, predicted_series, axes=ax, figure=fig)
         legend.append('Trend (m=%.05f)' % model.beta['x'])
-    
+
     ax.legend(legend)
     ax.set_xlim(series.index.min(), series.index.max())
 

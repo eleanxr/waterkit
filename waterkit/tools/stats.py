@@ -31,8 +31,12 @@ class OLSRegressionModel(object):
         self._singular_values = s
 
     @property
-    def model(self):
-        return self._model
+    def slope(self):
+        return self._model[0]
+
+    @property
+    def intercept(self):
+        return self._model[1]
 
     def predict(self, x=None):
         """Use the regression model to predict the values of a series.

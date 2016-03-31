@@ -48,9 +48,10 @@ class DroughtPlotBuilder(object):
 
     Parameters
     ----------
-    flow_data : Series
-    gap_data : Series
+    annual_data : Series
+        The annual dataset to compare over drought years.
     drought_analysis : analysis.DroughtYearAnalysis
+        The data source for drought years.
     """
     def __init__(self, drought_analysis, annual_data, **plotargs):
         self._drought_analysis = drought_analysis
@@ -76,7 +77,8 @@ class DroughtPlotBuilder(object):
             drought_years.to_frame(name="InDrought"),
             how='left',
             left_index=True,
-            right_index=True)
+            right_index=True
+        )
         return Bar(
             data=merged,
             label="index",

@@ -14,15 +14,15 @@ class OLSRegressionModel(object):
         Parameters
         ----------
         y : Series
-            A Series with the ordinate.
+            A Series with the response.
         x : Series, optional
-            A series with the abcissa. If this is not provided, the series index
-            for the y values will be used.
+            A series with the covariate. If this is not provided, the series
+            index for the response values will be used.
         """
         self._xs = np.array(x if x is not None else y.index)
         self._ys = np.array(y)
-        # Linear regression is the least squares minimization of the overdetermined
-        # system (a, 1)x = y
+        # Linear regression is the least squares minimization of the
+        # overdetermined system (a, 1)x = y
         A = np.array([self._xs, np.ones(len(self._xs))])
         model, residuals, rank, s = np.linalg.lstsq(A.T, self._ys)
         self._model = model

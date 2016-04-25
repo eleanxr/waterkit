@@ -13,7 +13,14 @@ def create_raster_table(data, value, ascending = True):
     year and day of year as indices and the specified
     value attribute as the value.
     """
-    return data.pivot(index = 'year', columns = 'dayofyear', values = value).sort_index(ascending=ascending)
+    pivot_frame = data.copy()
+    pivot_frame['year'] = pivot_frame.index.year
+    pivot_frame['dayofyear'] = pivot_frame.index.dayofyear
+    return pivot_frame.pivot(
+        index='year',
+        columns='dayofyear',
+        values = value
+    ).sort_index(ascending=ascending)
 
 def create_yearly_totals(data, attributes):
     """

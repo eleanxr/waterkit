@@ -1,12 +1,13 @@
 import pandas as pd
 import numpy as np
 
-import seaborn as sns
+#import seaborn as sns
 
 import matplotlib.pyplot as plt
 
 from bokeh.charts import Bar
 from bokeh.models import Range1d, NumeralTickFormatter
+from bokeh.charts.attributes import color
 
 from . import analysis
 
@@ -79,11 +80,16 @@ class DroughtPlotBuilder(object):
             left_index=True,
             right_index=True
         )
+
+        # Choose a color palette that sets drought years to red and non drought
+        # years to green.
+        drought_color = color(columns="InDrought", palette=["green", "red"])
+
         return Bar(
             data=merged,
             label="index",
             values="Annual",
-            color="InDrought",
+            color=drought_color,
             agg='sum',
             #FIXME: The label doesn't display in the legend correctly
             #legend="top_right",

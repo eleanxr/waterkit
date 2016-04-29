@@ -44,12 +44,26 @@ class DroughtYearFromFlowAnalysis(DroughtYearAnalysis):
         Flow data in cfs as a series indexed by date.
     quantile : number
         Quantile to use when identifying drought years.
+    season : tuple
+        Interval of waterkit.flow.DayOfYear objects specifying the begin and
+        end days of the season
     """
-    def __init__(self, flowdata, quantile=0.1):
+    def __init__(self, flowdata, quantile=0.1,
+        season=None):
+        if season:
+            # Don't use a leap year here to calculate the season day of year.
+            # We want to include all years that have the full collection of
+            # days for the season, regardless of whether or not that year is
+            # a leap year.
+            begin_day = season[0].get_dayofyear(leap_year=False)
+            end_day = season[1].get_dayofyear(leap_year=False)
+            season_length = end_day - begin_day - 1
+        else:
+            season_length = 365
         self.flowdata = flowdata
         self.quantile = quantile
         groups = self.flowdata.groupby(get_wateryear)
-        full_years = groups.filter(lambda g: g.count() >= 365)
+        full_years = groups.filter(lambda g: g.count() >= season_length)
         volumes = full_years.groupby(get_wateryear).sum() * flow_analysis.CFS_TO_AFD
         self.volumes = volumes
 

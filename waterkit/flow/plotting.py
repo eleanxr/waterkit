@@ -86,7 +86,12 @@ def rasterplot(data, attribute, title=None, colormap=None, norm=None,
         fig, ax = plt.subplots()
 
     raster_table = analysis.create_raster_table(data, attribute, ascending = False)
-    extent = [0, 365, raster_table.index.min(), raster_table.index.max()]
+    extent = [
+        raster_table.columns.min(),
+        raster_table.columns.max(),
+        raster_table.index.min(),
+        raster_table.index.max()
+    ]
     min_value = data.min()[attribute]
     max_value = data.max()[attribute]
 

@@ -46,7 +46,10 @@ class DroughtYearFromFlowAnalysis(DroughtYearAnalysis):
         Quantile to use when identifying drought years.
     season : tuple
         Interval of waterkit.flow.DayOfYear objects specifying the begin and
-        end days of the season
+        end days of the season.
+    year_window : int
+        The number of years to use when calcluating the volume threshold based
+        on the specified quantile value.
     """
     def __init__(self, flowdata, quantile=0.1,
         season=None, year_window=20):

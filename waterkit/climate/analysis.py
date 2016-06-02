@@ -49,7 +49,7 @@ class DroughtYearFromFlowAnalysis(DroughtYearAnalysis):
         end days of the season
     """
     def __init__(self, flowdata, quantile=0.1,
-        season=None):
+        season=None, year_window=20):
         if season:
             # Don't use a leap year here to calculate the season day of year.
             # We want to include all years that have the full collection of
@@ -66,9 +66,10 @@ class DroughtYearFromFlowAnalysis(DroughtYearAnalysis):
         full_years = groups.filter(lambda g: g.count() >= season_length)
         volumes = full_years.groupby(get_wateryear).sum() * flow_analysis.CFS_TO_AFD
         self.volumes = volumes
+        self.year_window = year_window
 
     def label_years(self):
-        threshold = self.volumes.quantile(self.quantile)
+        threshold = self.volumes.head(self.year_window).quantile(self.quantile)
         return self.volumes.map(
             lambda v: True if v <= threshold else False
         )

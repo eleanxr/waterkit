@@ -28,7 +28,7 @@ class FlowTarget(object):
         """Get the target flow on a given day of the year"""
         raise NotImplementedError
 
-    def as_daily_timeseries(self, begin, end, effective_date=None):
+    def as_daily_timeseries(self, begin, end, effective_date=None, term=None):
         """Get a daily timeseries of the target for the speficied dates"""
         raise NotImplementedError
 
@@ -48,7 +48,7 @@ class FlowTarget(object):
             end=datetime_index.max(),
             effective_date=effective_date
         )
-        
+
 
 
 class GradedFlowTarget(FlowTarget):
@@ -102,7 +102,7 @@ class GradedFlowTarget(FlowTarget):
     def __str__(self):
         return "GradedFlowTarget(" + str(self.targets) + ")"
 
-    def as_daily_timeseries(self, begin, end, effective_date=None):
+    def as_daily_timeseries(self, begin, end, effective_date=None, term=None):
         """Get this target as a daily flow rate value.
 
         Parameters
@@ -118,10 +118,14 @@ class GradedFlowTarget(FlowTarget):
         date_range = pd.date_range(begin, end, freq='D')
         effective_timestamp = pd.Timestamp(effective_date) \
             if effective_date else pd.Timestamp(begin)
+        end_timestamp = pd.Timestamp(effective_timestamp) + pd.Timedelta(days=term * 365) \
+            if term else pd.Timestamp(end)
         result = pd.Series(np.nan, date_range)
         # It'd be nice to figure out how to verctorize this.
         for index, value in result.iteritems():
             if index < effective_timestamp:
+                result.loc[index] = 0.0
+            elif index > end_timestamp:
                 result.loc[index] = 0.0
             else:
                 result.loc[index] = self.get_target_flow(index.dayofyear, 0.0)
@@ -142,7 +146,7 @@ class FlatFlowTarget(FlowTarget):
     def get_target_flow(self, day, default=np.nan):
         return self.value
 
-    def as_daily_timeseries(self, begin, end, effective_date=None):
+    def as_daily_timeseries(self, begin, end, effective_date=None, term=None):
         if effective_date:
             if effective_date < begin or effective_date > end:
                 raise Exception("Effective date must be between begin and end dates.")
@@ -170,7 +174,7 @@ class SeriesFlowTarget(FlowTarget):
         """
         return self.series[self.series.dayofyear == day].mean()
 
-    def as_daily_timeseries(self, begin, end, effective_date=None):
+    def as_daily_timeseries(self, begin, end, effective_date=None, term=None):
         if effective_date:
             return pd.concat([
                 pd.Series(0, pd.date_range(

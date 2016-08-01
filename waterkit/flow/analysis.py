@@ -267,9 +267,9 @@ def annual_minimum(series, period, by_wateryear=False):
         group_f = lambda x: x.year
     return series.groupby(group_f).apply(pd.rolling_mean, period).groupby(group_f).min()
 
-def low_flow_trend_pct(series, period, by_wateryear=False):
-    """Calculate the low flow trend as a fraction of its average.
+def low_flow_trend_cfs_per_year(series, period, by_wateryear=False):
+    """Calculate the low flow trend as a measure of cfs/year.
     """
     lowflow = annual_minimum(series, period, by_wateryear)
     model = stats.OLSRegressionModel(lowflow)
-    return model.slope / lowflow.mean()
+    return model.slope

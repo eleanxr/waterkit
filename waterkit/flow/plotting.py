@@ -24,7 +24,8 @@ def deficit_days_plot(data, gap_attribute, title, fig = None, ax = None):
         fig, ax = plt.subplots()
     days = analysis.monthly_deficit_pct(data, gap_attribute)
     days.plot(kind = 'bar', ax=ax)
-    ax.set_title(title)
+    if title:
+        ax.set_title(title)
     return ax
 
 def annual_deficit_days_plot(data, gap_attribute, title, fig=None, ax=None):
@@ -40,7 +41,8 @@ def volume_deficit_monthly(data, gap_attribute, title, fig=None, ax=None):
         fig, ax = plt.subplots()
     monthly_values = analysis.monthly_volume_deficit(data, gap_attribute, analysis.CFS_TO_AFD)
     monthly_values.abs().boxplot(ax=ax)
-    ax.set_title(title)
+    if title:
+        ax.set_title(title)
     return ax
 
 def volume_deficit_annual(data, gap_attribute, title, fig=None, ax=None):
@@ -63,7 +65,8 @@ def volume_deficit_pct_monthly(data, gap_attribute, target_attribute, title,
     monthly_values = analysis.monthly_volume_deficit_pct(data, gap_attribute, target_attribute,
         analysis.CFS_TO_AFD)
     monthly_values.abs().boxplot(ax=ax)
-    ax.set_title(title)
+    if title:
+        ax.set_title(title)
     return ax
 
 def volume_deficit_pct_annual(data, gap_attribute, target_attribute, title, fig=None, ax=None):
@@ -139,7 +142,8 @@ def plot_monthly_statistics(data, attribute, title):
     outliers.
     """
     plot = data.boxplot(attribute, by='month')
-    plt.title(title)
+    if title:
+        plt.title(title)
 
     axes = plot.get_axes()
 
